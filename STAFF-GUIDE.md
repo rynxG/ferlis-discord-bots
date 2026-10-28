@@ -1,6 +1,6 @@
-# FERLIS staff systems
+# Chrisp staff systems
 
-The bots display as **Jerry**, **Ferlis Utility**, and **Ferlis Support**. Panel titles and new bot embeds use FERLIS branding.
+The bots display as **Jerry**, **Chrisp Utility**, and **Chrisp AI**. Product-wide panels use CHRISP branding.
 
 Open **#staff-dashboard** or `/staff-dashboard`. The channel is private to the existing staff teams. Each click checks your current server permissions. Approved answers, settings, privacy and backup download require Administrator.
 
@@ -8,7 +8,7 @@ Open **#staff-dashboard** or `/staff-dashboard`. The channel is private to the e
 
 Free support remembers the current ticket's topic for 30 minutes by default. Follow-ups such as “how much?” use that topic; another ticket or owner cannot access its memory. Client/account topics are separate. Memory and per-ticket answer references expire automatically.
 
-Right-click a FERLIS Support answer → **Apps → Correct support answer**. Staff with Manage Messages can enter the question and replacement answer. The correction applies only inside that ticket. An administrator can use **Publish as approved answer** to add it to global knowledge. Dashboard → **Approved answers** also adds or edits global answers. This remains local matching rather than a generative LLM.
+Right-click a Chrisp AI answer → **Apps → Correct support answer**. Staff with Manage Messages can enter the question and replacement answer. The correction applies only inside that ticket. An administrator can use **Publish as approved answer** to add it to global knowledge. Dashboard → **Approved answers** also adds or edits global answers. This remains local matching rather than a generative LLM.
 
 ## Tickets
 

@@ -1,20 +1,33 @@
-# Ferlis Discord bots
+# Chrisp community bots
 
-Source for **Jerry**, **Ferlis Utility**, and **Ferlis Support**.
+Three Discord bots share one Node.js process and a SQLite database:
 
-- Jerry: text, image and sampled GIF moderation; escalation, staff commands, case review, join/leave and boost logs.
-- Utility: private tickets, purchase forms, rich transcripts, staff dashboard, media applications and temporary voice rooms.
-- Support: free built-in answers, approved knowledge, ticket topic memory and staff corrections. Paid generation is disabled by default.
-- Shared: SQLite persistence, backups, retention controls and process health supervision.
+| Bot profile        | Responsibility                                                                |
+| ------------------ | ----------------------------------------------------------------------------- |
+| **Chrisp Utility** | Tickets, transcripts, media applications, voice rooms and staff dashboard     |
+| **Chrisp AI**      | Free common answers, approved knowledge, ticket context and staff corrections |
+| **Jerry**          | Text/image/GIF moderation, moderation commands, raid alerts and member logs   |
 
-## Setup
+Chrisp Utility handles server tools; Chrisp AI handles ticket support. Their internal roles and credentials remain separate.
 
-Requires Node.js 24. Run `npm ci`, copy `.env.example` to `.env`, fill in your own bot credentials and server identifiers, then run `npm test` and `npm start`.
+## Getting started
 
-Enable the Discord privileged intents required by the features you use. Keep credentials in environment variables. Never commit `.env`, databases, transcripts, applications, moderation records or backups.
+Requires **Node.js 24**.
 
-This source was developed for one server and includes server-specific channel identifiers. Review those identifiers and permissions before using it elsewhere. Some administrative scripts are one-time tools; do not run them as startup commands. The live permission update has been applied and audited: the bots run without Administrator, private staff channels are restricted, and posting-only channels deny message/thread bypasses. See SECURITY.md for the scope and limitations. Do not rerun the one-time hardening script on a customized server; use targeted repairs.
+1. Run `npm ci --ignore-scripts`.
+2. Copy `.env.example` to `.env` and enter your own credentials and server IDs privately.
+3. Configure the Discord intents described in [CONTRIBUTING.md](CONTRIBUTING.md).
+4. Run `npm test`, then `npm start`.
 
-The moderation service optionally uses OpenAI image moderation. Support replies can remain entirely local. GIF scanning samples frames and is not a guarantee of detection. Health monitoring cannot send alerts while its hosting provider is entirely offline. Keep an independent backup.
+Never commit credentials, databases, ticket transcripts, application answers or backups. The optional generative support integration is disabled by default; local support answers work without a paid LLM.
 
-Run `npm test` for the automated checks. See `STAFF-GUIDE.md` and `COMMUNITY.md` for operational details; historical deployment details in those documents may need updating.
+## Development
+
+- `npm test` — run the test suite.
+- `npm run format` — format source, tests and documentation.
+- `npm run format:check` — verify formatting without modifying files.
+- `npm run check` — check the entry point's JavaScript syntax.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the code map and development workflow, [STAFF-GUIDE.md](STAFF-GUIDE.md) for staff features, and [SECURITY.md](SECURITY.md) for the permission model and limits.
+
+This project was built for a specific server and still contains server-specific channel identifiers. Review configuration before using it elsewhere. Files such as `server-hardening.js`, `repair-moderator-role.js` and `migrate-chirsp.js` are manual maintenance tools, **not startup commands**. Historical transcripts remain records of their original conversations.

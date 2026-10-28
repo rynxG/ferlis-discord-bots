@@ -1,6 +1,6 @@
 # Server permission update
 
-The bots are Jerry, Ferlis Utility and Ferlis Support. The shared white The Wise Ones role is a display grouping only; its permissions have been cleared. Each bot keeps its own scoped permissions. The owner retains Discord's inherent server-owner powers.
+The bots are Jerry, Chrisp Utility and Chrisp AI. The shared white The Wise Ones role is a display grouping only; its permissions have been cleared. Each bot keeps its own scoped permissions. The owner retains Discord's inherent server-owner powers.
 
 The Moderator role has Manage Messages, Moderate Members, Kick Members and Ban Members, without Administrator. Staff-only channels and transcripts remain private. Posting-only channels deny messages and both public/private thread creation. Config sharing keeps posting enabled with a 15-second slowmode. Existing role colours and the current server name are preserved.
 

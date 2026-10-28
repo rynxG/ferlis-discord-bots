@@ -9,10 +9,15 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env src/main.js",
     "test": "node --test",
-    "check": "node --check src/main.js"
+    "check": "node --check src/main.js",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "discord.js": "14.27.0",
     "sharp": "0.34.5"
+  },
+  "devDependencies": {
+    "prettier": "3.6.2"
   }
 }
