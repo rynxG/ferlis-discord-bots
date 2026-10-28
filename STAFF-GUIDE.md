@@ -1,6 +1,6 @@
 # FERLIS staff systems
 
-The bots display as **Ferlis Moderation**, **Ferlis Utility**, and **Ferlis Support**. Panel titles and new bot embeds use FERLIS branding.
+The bots display as **Jerry**, **Ferlis Utility**, and **Ferlis Support**. Panel titles and new bot embeds use FERLIS branding.
 
 Open **#staff-dashboard** or `/staff-dashboard`. The channel is private to the existing staff teams. Each click checks your current server permissions. Approved answers, settings, privacy and backup download require Administrator.
 
