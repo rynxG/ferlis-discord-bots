@@ -9,10 +9,11 @@ import {join} from 'node:path';
 export const roleNames=['Member','Ferlis+','Support Team','Development Team','Moderator'];
 export async function ensureServerFeatures(guild,db) {
   await guild.roles.fetch();
+  const hardened=db.prepare("SELECT value FROM settings WHERE key='security:hardened'").get()?.value==='1';
   const roles={};
   for(const name of roleNames) {
     let role=guild.roles.cache.find(r=>r.name===name);
-    if(!role) role=await guild.roles.create({name,permissions:name==='Moderator'?[P.ManageMessages,P.ModerateMembers]:[],hoist:name!=='Member',reason:'Server roles requested by owner'});
+    if(!role) role=await guild.roles.create({name,permissions:name==='Moderator'&&!hardened?[P.ManageMessages,P.ModerateMembers]:[],hoist:name!=='Member',reason:'Server roles requested by owner'});
     roles[name]=role;
     db.prepare('INSERT INTO settings VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run('role:'+name,role.id);
   }
@@ -28,7 +29,6 @@ export async function ensureServerFeatures(guild,db) {
   db.prepare("INSERT INTO settings VALUES('basefind-channel',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(base.id);
   // A hardened server already has explicit, team-scoped channel permissions.
   // Never re-add Support access to staff tools or transferred tickets on startup.
-  const hardened=db.prepare("SELECT value FROM settings WHERE key='security:hardened'").get()?.value==='1';
   for(const row of hardened?[]:db.prepare("SELECT value FROM settings WHERE key IN ('category:support','category:purchase','category:appeal','category:something-else') UNION SELECT channel AS value FROM tickets WHERE state!='deleted'").all()) {
     const ch=await guild.channels.fetch(row.value).catch(()=>null);
     if(ch) for(const name of ['Support Team','Moderator']) await ch.permissionOverwrites.edit(roles[name],{ViewChannel:true,SendMessages:true,ReadMessageHistory:true});

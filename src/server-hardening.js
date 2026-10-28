@@ -19,7 +19,7 @@ try{
  const styles=[['Owner',0xf1c40f,true],['Moderator',0xe74c3c,true],['Development Team',0x9b59b6,true],['Support Team',0x3498db,true],['Media Team',0x1abc9c,true],['Ferlis+',0xf39c12,true],['Server Booster',0xff73fa,true],['Member',0x95a5a6,false],['voice-access',0,false]];
  const roles={};
  for(const[name,color,hoist]of styles){let role=guild.roles.cache.find(r=>r.name===name);if(!role)role=await guild.roles.create({name,permissions:[],reason});const permissions=name==='Moderator'?[P.ManageMessages,P.ModerateMembers,P.KickMembers,P.BanMembers]:[];await role.edit({color,hoist,mentionable:false,permissions,reason});roles[name]=role;put('role:'+name,role.id);results.roles.push(name);}
- await guild.roles.setPositions(['voice-access','Member','Server Booster','Ferlis+','Media Team','Support Team','Development Team','Moderator','Owner'].map((name,n)=>({role:roles[name].id,position:n+1})));
+ try{await guild.roles.setPositions(['voice-access','Member','Server Booster','Ferlis+','Media Team','Support Team','Development Team','Moderator','Owner'].map((name,n)=>({role:roles[name].id,position:n+1})));}catch(e){results.pending.push('Owner role-order adjustment: '+e.message);}
  const owner=await guild.members.fetch(guild.ownerId);if(!owner.roles.cache.has(roles.Owner.id))await owner.roles.add(roles.Owner,reason);
  await guild.roles.everyone.setPermissions(normalPermissions,reason);
  await guild.edit({name:'Ferlis Client',verificationLevel:2,explicitContentFilter:2,defaultMessageNotifications:1,reason});

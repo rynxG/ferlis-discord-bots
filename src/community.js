@@ -38,7 +38,7 @@ export function installCommunity(utility,jerry,db,env,baseReady){
  async function setup(){
   await baseReady();const g=await utility.guilds.fetch(env.GUILD_ID);await g.roles.fetch();await g.channels.fetch();
   const staffRoles=['Support Team','Development Team','Moderator'].map(n=>g.roles.cache.find(r=>r.name===n)).filter(Boolean);
-  const mod=staffRoles.find(r=>r.name==='Moderator');if(mod&&!mod.permissions.has(P.BanMembers))await mod.setPermissions(mod.permissions.add(P.KickMembers,P.BanMembers),'Staff moderation commands requested by owner');
+  const mod=staffRoles.find(r=>r.name==='Moderator');if(mod&&!mod.permissions.has(P.BanMembers)&&get('security:hardened')!=='1')await mod.setPermissions(mod.permissions.add(P.KickMembers,P.BanMembers),'Staff moderation commands requested by owner');
   let access=g.roles.cache.find(r=>r.name==='voice-access');if(!access)access=await g.roles.create({name:'voice-access',permissions:[],reason:'Temporary voice owner controls'});put('role:voice-access',access.id);
   const privateRules=[{id:g.id,type:0,deny:[P.ViewChannel]},...staffRoles.map(r=>({id:r.id,type:0,allow:[P.ViewChannel,P.SendMessages,P.ReadMessageHistory]})),{id:utility.user.id,type:1,allow:[P.ViewChannel,P.SendMessages,P.ReadMessageHistory,P.ManageChannels]}];
   async function channel(key,name,type,parent,permissionOverwrites){let ch=get(key)?await g.channels.fetch(get(key)).catch(()=>null):null;if(!ch)ch=g.channels.cache.find(c=>c.name===name&&c.type===type);if(!ch)ch=await g.channels.create({name,type,...(parent?{parent}:{}),...(permissionOverwrites?{permissionOverwrites}:{}),reason:'Feris community systems setup'});put(key,ch.id);return ch;}
