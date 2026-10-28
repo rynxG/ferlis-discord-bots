@@ -7,6 +7,8 @@ test('Chrisp display names retain distinct internal routing and Jerry identity',
   assert.equal(displayBotName('Jerry'), 'Jerry');
   assert.equal(displayBotName('Feris Utility'), 'Chrisp Utility');
   assert.equal(displayBotName('Ferlis Support'), 'Chrisp AI');
+  assert.equal(brandText('Ferlis Support'), 'Chrisp AI');
+  assert.equal(brandText('Feris Utility'), 'Chrisp Utility');
 });
 
 test('existing bot embeds update branding without rewriting ticket answers or control IDs', () => {
