@@ -55,7 +55,7 @@ try {
       before = archived.threads.last().archiveTimestamp;
     }
   }
-  const banner = await readFile(new URL('../assets/chirsp-banner.png', import.meta.url));
+  const banner = await readFile(new URL('../assets/chrisp-banner.png', import.meta.url));
   for (const channel of channels.values()) {
     if (!channel.viewable) continue;
     result.channels++;
@@ -87,7 +87,7 @@ try {
         const embeds = body?.embeds || structuredClone(original.embeds);
         for (const embed of embeds) {
           if (/(?:felris|ferlis)-banner\.png/.test(embed.image?.url || '')) {
-            embed.image.url = 'attachment://chirsp-banner.png';
+            embed.image.url = 'attachment://chrisp-banner.png';
             replaceBanner = true;
           }
           for (const item of [embed.author, embed.footer]) {
@@ -103,13 +103,13 @@ try {
         }
         const files = [];
         if (replaceBanner) {
-          files.push({ name: 'chirsp-banner.png', data: banner, contentType: 'image/png' });
+          files.push({ name: 'chrisp-banner.png', data: banner, contentType: 'image/png' });
           body = {
             ...(body || {}),
             embeds,
             attachments: [...message.attachments.values()]
               .map((a) => ({ id: a.id, filename: a.name }))
-              .concat([{ id: 0, filename: 'chirsp-banner.png' }]),
+              .concat([{ id: 0, filename: 'chrisp-banner.png' }]),
           };
         }
         if (!body) continue;

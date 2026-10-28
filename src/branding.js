@@ -28,8 +28,8 @@ export async function applyBranding(client, role, guild, db, invite) {
           ['banner', 'felris-banner.png'],
         ]
       : [
-          ['avatar', 'chirsp-avatar.png'],
-          ['banner', 'chirsp-banner.png'],
+          ['avatar', 'chrisp-avatar.png'],
+          ['banner', 'chrisp-banner.png'],
         ];
   for (const [kind, file] of images) {
     const data = await readFile(new URL('../assets/' + file, import.meta.url));
