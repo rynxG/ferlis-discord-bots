@@ -5,7 +5,6 @@ import {
   PermissionFlagsBits as P,
   PermissionsBitField,
   EmbedBuilder,
-  AttachmentBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
@@ -190,27 +189,19 @@ try {
     embeds: [
       new EmbedBuilder()
         .setColor(0x2b2d31)
-        .setTitle('CHRISP • Server Rules')
+        .setTitle('Server Rules')
         .setDescription(
           '**1. Respect people.** No harassment, hate, threats, doxxing or explicit content.\n\n**2. No spam or scams.** No unsolicited advertising, mass mentions, impersonation or suspicious links.\n\n**3. Keep accounts safe.** Never post passwords, login tokens, API keys, verification codes or full payment details.\n\n**4. Use the right channel.** Submit base finds through /basefind and configurations through config-sharing. Executables and scripts are blocked in sharing channels.\n\n**5. Keep tickets sensible.** One ticket per issue. Explain the problem and avoid repeated staff pings; staff may be busy or sleeping.\n\n**6. Staff review disputes.** Use an Appeal ticket if you believe a punishment was mistaken. Do not evade a timeout or ban.',
         )
-        .setFooter({ text: 'CHRISP • Community rules' }),
+        .setFooter({ text: 'Community rules' }),
     ],
     allowedMentions: { parse: [] },
   });
   const banner = await readFile(new URL('../assets/felris-banner.png', import.meta.url));
   await panel(start, 'start:panel', {
-    embeds: [
-      new EmbedBuilder()
-        .setColor(0x2b2d31)
-        .setTitle('CHRISP • Start Here')
-        .setDescription(
-          'Welcome to **Ferlis Client**.\n\nRead the rules, use the ticket panel for support or purchases, and find media applications under Content & Media.\n\n**Staff will never need your password or login token.** Only follow purchase or download instructions confirmed through the official server.',
-        )
-        .setImage('attachment://ferlis-banner.png')
-        .setFooter({ text: 'CHRISP • Support, community and updates' }),
-    ],
-    files: [new AttachmentBuilder(banner, { name: 'ferlis-banner.png' })],
+    content:
+      '**Welcome to Chrisp Client.**\n\nRead the rules, use the ticket panel for support or purchases, and find media applications under Content & Media.\n\n**Staff will never need your password or login token.** Only follow purchase or download instructions confirmed through the official server.',
+    embeds: [],
     components: [
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()

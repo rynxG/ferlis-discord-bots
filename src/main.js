@@ -244,14 +244,7 @@ partik.on(Events.GuildMemberAdd, async (member) => {
       await member.roles.add(role, 'Automatic new member role');
     const channel = await member.guild.channels.fetch('1562499165332967605');
     await channel.send({
-      embeds: [
-        new EmbedBuilder()
-          .setColor(colors.good)
-          .setTitle(brandTitle('Welcome to CHRISP!'))
-          .setDescription(`Welcome <@${member.id}>!`)
-          .setThumbnail(member.user.displayAvatarURL())
-          .setTimestamp(),
-      ],
+      content: `Welcome <@${member.id}> to Chrisp Client!`,
       allowedMentions: { users: [member.id], parse: [] },
     });
   } catch (e) {
@@ -483,7 +476,7 @@ function ticketPanel() {
           value:
             '• Choose the category that fits your question.\n• Explain your issue clearly and be patient.\n• Please do not open troll or duplicate tickets.\n• Please do not spam ping our staff. If we don’t answer fast we either are busy or sleeping.\n• Use common sense in tickets.',
         })
-        .setFooter({ text: 'CHRISP • Support Team' }),
+        .setFooter({ text: 'Support Team' }),
     ],
     components: [
       new ActionRowBuilder().addComponents(
@@ -531,7 +524,7 @@ utility.once(Events.ClientReady, async () => {
           embeds: panelMessage.embeds.map((e) =>
             EmbedBuilder.from(e)
               .setTitle(brandTitle(e.title || 'Ticket'))
-              .setFooter({ text: 'CHRISP • Support Team' }),
+              .setFooter({ text: 'Support Team' }),
           ),
           components: [controls()],
         });
@@ -943,7 +936,7 @@ utility.on(Events.MessageCreate, async (message) => {
           .setDescription(
             `**A Staff member has responded to your ticket!**\n[Open your ticket](${url})`,
           )
-          .setFooter({ text: 'CHRISP • Support Team' }),
+          .setFooter({ text: 'Support Team' }),
       ],
       components: [
         new ActionRowBuilder().addComponents(

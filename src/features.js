@@ -116,13 +116,13 @@ export function priceEmbed(product) {
       .setDescription(
         '24h Java Token - **20M**\n3d Token - **80M**\n\n**IRL money**\n24h Token - **0,25 EUR**\n3d Token - **0.70 EUR**\n\n__If buying accounts for real life currency the minimal purchase is 5 Accounts.__',
       )
-      .setFooter({ text: 'CHRISP • Support Team' });
+      .setFooter({ text: 'Support Team' });
   if (product === 'other')
     return embed
       .setDescription(
         'Tell staff what you would like to buy. Staff will confirm availability and pricing.',
       )
-      .setFooter({ text: 'CHRISP • Support Team' });
+      .setFooter({ text: 'Support Team' });
   return embed
     .setDescription('Thank you for your interest in **CHRISP**!')
     .addFields(
@@ -132,7 +132,7 @@ export function priceEmbed(product) {
         value: 'Basic Edition is **free**\nCHRISP+ is **€7.99** or the local-currency equivalent.',
       },
     )
-    .setFooter({ text: 'CHRISP • Support Team | Ask staff for purchase details.' });
+    .setFooter({ text: 'Support Team | Ask staff for purchase details.' });
 }
 export async function archiveTicket(channel, row, archive, db, dataDir) {
   const messages = [];

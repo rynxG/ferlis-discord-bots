@@ -30,7 +30,7 @@ export async function supervise(env = process.env) {
         body: JSON.stringify({
           embeds: [
             {
-              title: good ? 'CHRISP • Service recovered' : 'CHRISP • Health alert',
+              title: good ? 'Service recovered' : 'Health alert',
               description: text,
               color: good ? 0x57f287 : 0xed4245,
               timestamp: new Date().toISOString(),

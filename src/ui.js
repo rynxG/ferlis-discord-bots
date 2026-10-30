@@ -1,8 +1,10 @@
 import { readFile } from 'node:fs/promises';
 export const colors = { good: 0x57f287, bad: 0xed4245, neutral: 0x2b2d31 };
 export function brandTitle(value) {
-  const text = String(value).replace(/\b(?:Chrisp|Chrisp|Ferlis|Felris|Feris)\b/gi, 'CHRISP');
-  return (/^CHRISP\b/.test(text) ? text : 'CHRISP • ' + text).slice(0, 45);
+  return String(value)
+    .replace(/\b(?:CHRISP|FERLIS|FELRIS|FERIS|CHIRSP)\s*[•·]\s*/gi, '')
+    .trim()
+    .slice(0, 100);
 }
 const icons = new Map();
 export const icon = (name, fallback = '▫️') => icons.get(name) || fallback;

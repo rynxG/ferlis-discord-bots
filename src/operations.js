@@ -103,7 +103,7 @@ export function dashboardPayload(db, clients) {
     embeds: [
       new EmbedBuilder()
         .setColor(0x2b2d31)
-        .setTitle(brandTitle('CHRISP • Staff Dashboard'))
+        .setTitle(brandTitle('Staff Dashboard'))
         .setDescription(
           'Manage the server from one place. Settings, global answers, privacy and backups require Administrator.',
         )
@@ -146,7 +146,7 @@ export function dashboardPayload(db, clients) {
 export function installOperations(utility, jerry, assistance, db, env, baseReady) {
   operationsSchema(db);
   const clients = [
-      ['CHRISP • Moderation', jerry],
+      ['Moderation', jerry],
       ['Chrisp Utility • Commands', utility],
       ['Chrisp AI • Commands', assistance],
     ],
