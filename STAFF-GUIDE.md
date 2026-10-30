@@ -2,6 +2,14 @@
 
 The bots display as **Jerry**, **Chrisp Utility**, and **Chrisp AI**. Product-wide panels use CHRISP branding.
 
+## Client download access
+
+The `/download` command is served by Chrisp Utility. Configure `CLIENT_DOWNLOAD_URL` with the official HTTPS client file or release link in the hosting environment; the command deliberately returns no link until this is configured. Discord Server Tags must also be unlocked and enabled for the server. Until Discord reports the `GUILD_TAGS` feature, the gate does not assign `Access Ban` or `Tag Hold`, so members keep their current access. Once enabled, a displayed tag for this server starts a continuous seven-day `Tag Hold`; removing it before the week ends resets the timer and applies `Access Ban`. After seven uninterrupted days, the hold role is removed and the member becomes eligible. Staff with administrator or message-management permissions are exempt.
+
+## Community chat and German moderation
+
+Chrisp AI answers in public text channels in the **Community** category only when a member mentions it or replies to it. Replies use the free common-answer and approved-knowledge store, with per-member chat memory. In those chat channels, attachments, link previews, external emoji/sticker use, voice messages and polls are restricted to Server Boosters and staff. Jerry recognizes additional German profanity and threats; when the message is German, the moderation DM is sent in German.
+
 Open **#staff-dashboard** or `/staff-dashboard`. The channel is private to the existing staff teams. Each click checks your current server permissions. Approved answers, settings, privacy and backup download require Administrator.
 
 ## Support memory and corrections
