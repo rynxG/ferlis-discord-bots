@@ -126,13 +126,16 @@ try {
   const owner = await guild.members.fetch(guild.ownerId);
   if (!owner.roles.cache.has(roles.Owner.id)) await owner.roles.add(roles.Owner, reason);
   await guild.roles.everyone.setPermissions(normalPermissions, reason);
-  await guild.edit({
-    name: 'Ferlis Client',
-    verificationLevel: 2,
-    explicitContentFilter: 2,
-    defaultMessageNotifications: 1,
-    reason,
-  });
+  try {
+    await guild.edit({
+      verificationLevel: 2,
+      explicitContentFilter: 2,
+      defaultMessageNotifications: 1,
+      reason,
+    });
+  } catch (error) {
+    results.pending.push('Guild-level safety settings: ' + error.message);
+  }
   const information = guild.channels.cache.get('1562498816714997770');
   const botRules = Object.values(bots).map((id) => ({
     id,
