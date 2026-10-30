@@ -237,7 +237,7 @@ function makeClient(name, commands, messageContent = false, members = false) {
       const guild = await client.guilds.fetch(env.GUILD_ID);
       client.user.setPresence({
         status: name === 'Jerry' ? 'online' : 'idle',
-        activities: [{ name: 'Chrisp Client', type: 0 }],
+        activities: [{ name: 'Chrisp Addon', type: 0 }],
       });
       await guild.commands.set(commands.map((c) => c.toJSON()));
       await applyBranding(client, name, guild, db, await serverInvite(guild)).catch((e) =>
