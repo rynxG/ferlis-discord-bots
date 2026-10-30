@@ -1197,12 +1197,22 @@ assistance.once(Events.ClientReady, async () => {
 });
 const busy = new Set();
 const lastAnswer = new Map();
+const contentIntentWarnings = new Set();
 function isPublicCommunityChat(channel) {
   return Boolean(
     channel.guildId === env.GUILD_ID &&
       channel.type === ChannelType.GuildText &&
       (channel.parent?.name === 'Community' || channel.id === '1565712510680568019') &&
       channel.permissionsFor(channel.guild.roles.everyone)?.has(P.SendMessages),
+  );
+}
+function isCommunityHelpQuestion(content) {
+  const text = content.trim();
+  return (
+    /[?？]/.test(text) ||
+    /\b(?:help|support|question|how|what|where|when|why|who|which|can|could|would|do|does|is|are|need help|help me|i need|i want|wie|was|wo|wann|warum|wer|welche|kann|kannst|können|hilfe|ich brauche|bitte hilf|hoe|wat|waar|wanneer|waarom|wie|kan|kun|kunnen|hulp|ik heb hulp|help mij|weet iemand)\b/i.test(
+      text,
+    )
   );
 }
 async function answer(channel, question, askerId) {
@@ -1351,20 +1361,33 @@ assistance.on(Events.MessageCreate, async (m) => {
   if (m.guildId !== env.GUILD_ID || m.author.bot) return;
   const row = ticket(m.channelId);
   if (!row && isPublicCommunityChat(m.channel)) {
+    if (!m.content.trim()) {
+      if (!contentIntentWarnings.has(m.channelId)) {
+        contentIntentWarnings.add(m.channelId);
+        console.error(
+          `Community chat received an empty message body in #${m.channel.name}; verify Message Content Intent is enabled for Chrisp AI in the Discord Developer Portal.`,
+        );
+      }
+      return;
+    }
     const directed =
       m.mentions.users.has(assistance.user.id) ||
       (m.reference?.messageId &&
         (await m.channel.messages.fetch(m.reference.messageId).catch(() => null))?.author.id ===
           assistance.user.id);
-    if (!directed || !m.content.trim()) return;
+    if (!directed && !isCommunityHelpQuestion(m.content)) return;
     const question = m.content.replace(new RegExp(`<@!?${assistance.user.id}>`, 'g'), '').trim();
     try {
       await m.channel.sendTyping();
       const result = await answer(m.channel, question, m.author.id);
       if (result) await m.channel.send({ content: result, allowedMentions: { parse: [] } });
-    } catch {
+    } catch (error) {
+      console.error(`Community support reply failed in #${m.channel.name}:`, error);
       await m.channel
-        .send('I could not answer right now. Please open a support ticket.')
+        .send({
+          content: 'I could not answer right now. Please open a support ticket.',
+          allowedMentions: { parse: [] },
+        })
         .catch(() => {});
     }
     return;
