@@ -86,6 +86,8 @@ try {
     ['Media Team', 0x1abc9c, true],
     ['Ferlis+', 0xf39c12, true],
     ['Server Booster', 0xff73fa, true],
+    ['Tag Hold', 0x5865f2, true],
+    ['Access Ban', 0xed4245, true],
     ['Member', 0x95a5a6, false],
     ['voice-access', 0, false],
   ];
@@ -106,6 +108,8 @@ try {
     await guild.roles.setPositions(
       [
         'voice-access',
+        'Access Ban',
+        'Tag Hold',
         'Member',
         'Server Booster',
         'Ferlis+',
@@ -229,6 +233,49 @@ try {
           CreatePrivateThreads: false,
         });
       results.channels.push(channel.name + ': read-only');
+    } else if (
+      channel.type === ChannelType.GuildText &&
+      (channel.parent?.name === 'Community' || channel.name === 'english-chat')
+    ) {
+      const media = [
+        P.AttachFiles,
+        P.EmbedLinks,
+        P.UseExternalEmojis,
+        P.UseExternalStickers,
+        P.SendVoiceMessages,
+        P.SendPolls,
+      ];
+      await channel.permissionOverwrites.set(
+        [
+          {
+            id: guild.id,
+            type: 0,
+            allow: [
+              P.ViewChannel,
+              P.SendMessages,
+              P.ReadMessageHistory,
+              P.AddReactions,
+              P.UseApplicationCommands,
+            ],
+            deny: media,
+          },
+          {
+            id: roles['Access Ban'].id,
+            type: 0,
+            deny: [
+              P.SendMessages,
+              P.SendMessagesInThreads,
+              P.CreatePublicThreads,
+              P.CreatePrivateThreads,
+            ],
+          },
+          { id: roles['Server Booster'].id, type: 0, allow: media },
+          ...staffRules.map((r) => ({ ...r, allow: [...r.allow, ...media] })),
+          ...botRules,
+        ],
+        reason,
+      );
+      results.channels.push(channel.name + ': chat media restricted to boosters');
     } else if (channel.id === '1562538429076602971') {
       await channel.permissionOverwrites.set(
         [

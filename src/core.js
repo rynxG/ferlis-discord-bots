@@ -256,6 +256,26 @@ export const defaultBlockedWords = [
   'nudes',
   'nude trading',
   'suicide baiting',
+  'scheiße',
+  'scheisse',
+  'kacke',
+  'fick dich',
+  'ficken',
+  'verpiss dich',
+  'hurensohn',
+  'hurentochter',
+  'arschloch',
+  'fotze',
+  'wichser',
+  'schlampe',
+  'schwuchtel',
+  'halt die fresse',
+  'halt dein maul',
+  'vergewaltigen',
+  'kinderschänder',
+  'umbringen',
+  'ich bring dich um',
+  'doxxen',
 ];
 export function moderationText(s) {
   const map = {
@@ -286,8 +306,82 @@ export function moderationText(s) {
   return s
     .normalize('NFKD')
     .toLowerCase()
+    .replace(/ß/g, 'ss')
     .replace(/[\u200B-\u200F\u2060\uFEFF\p{M}]/gu, '')
     .replace(/[01345789@$!|+аеіосрхуѕӏ]/g, (c) => map[c] || c);
+}
+export function moderationLanguage(content, reason = '') {
+  const words = new Set(
+    moderationText(`${content || ''} ${reason || ''}`)
+      .replace(/ß/g, 'ss')
+      .split(/[^a-z]+/)
+      .filter(Boolean),
+  );
+  const germanHints = [
+    'ich',
+    'du',
+    'wir',
+    'ihr',
+    'nicht',
+    'bitte',
+    'danke',
+    'warum',
+    'was',
+    'wie',
+    'ist',
+    'sind',
+    'bin',
+    'bist',
+    'habe',
+    'hast',
+    'wurde',
+    'werden',
+    'kann',
+    'kannst',
+    'und',
+    'aber',
+    'oder',
+    'fur',
+    'mit',
+    'euch',
+    'mir',
+    'mich',
+    'mein',
+    'meine',
+    'dein',
+    'deine',
+    'einen',
+    'einem',
+    'hier',
+    'dort',
+    'mochte',
+    'mochtest',
+    'hilfe',
+  ];
+  const hits = germanHints.filter((word) => words.has(word)).length;
+  const germanWords = [
+    'scheiße',
+    'scheisse',
+    'kacke',
+    'fick dich',
+    'ficken',
+    'verpiss dich',
+    'hurensohn',
+    'hurentochter',
+    'arschloch',
+    'fotze',
+    'wichser',
+    'schlampe',
+    'schwuchtel',
+    'halt die fresse',
+    'halt dein maul',
+    'vergewaltigen',
+    'kinderschänder',
+    'umbringen',
+    'ich bring dich um',
+    'doxxen',
+  ];
+  return hits >= 2 || blockedReason(content || '', germanWords) ? 'de' : 'en';
 }
 export function sanction(count) {
   return count < 3

@@ -43,6 +43,7 @@ import {
   shouldNotifyTicketReply,
   ticketOverwrites,
   moderationInput,
+  moderationLanguage,
 } from './core.js';
 import { installCommunity } from './community.js';
 import { modCommands, installModeration, logCase } from './staff-moderation.js';
@@ -87,6 +88,63 @@ function command(name, description, restricted = false) {
   if (restricted) cmd.setDefaultMemberPermissions(P.Administrator);
   return cmd;
 }
+const tagWeek = 7 * 24 * 60 * 60 * 1000;
+function hasServerTag(user, guildId) {
+  const primary = user.primaryGuild;
+  return Boolean(
+    primary?.identityGuildId === guildId && primary.identityEnabled === true && primary.tag,
+  );
+}
+async function reconcileDownloadAccess(member) {
+  const guild = await member.guild.fetch();
+  if (!guild.features.includes('GUILD_TAGS')) return { state: 'tag-unavailable' };
+  const config = await infrastructure;
+  const hold = config.roles['Tag Hold'];
+  const ban = config.roles['Access Ban'];
+  const dbRow = db.prepare('SELECT * FROM download_access WHERE user=?').get(member.id);
+  if (
+    member.id === guild.ownerId ||
+    member.permissions.has(P.Administrator) ||
+    member.permissions.has(P.ManageMessages)
+  ) {
+    const remove = [hold, ban].filter((role) => member.roles.cache.has(role.id));
+    if (remove.length)
+      await member.roles.remove(remove, 'Staff are exempt from the client tag gate');
+    return { state: 'eligible' };
+  }
+  const user = await member.user.fetch(true);
+  const tagged = hasServerTag(user, guild.id);
+  const now = Date.now();
+  if (dbRow?.eligible_at) {
+    await member.roles.remove([hold.id, ban.id], 'Client tag requirement already completed');
+    return { state: 'eligible' };
+  }
+  if (!tagged) {
+    db.prepare(
+      'INSERT INTO download_access(user,tag_started,eligible_at,updated) VALUES(?,NULL,NULL,?) ON CONFLICT(user) DO UPDATE SET tag_started=NULL,updated=excluded.updated',
+    ).run(member.id, now);
+    if (member.roles.cache.has(hold.id))
+      await member.roles.remove(hold, 'Server tag removed; the seven-day timer resets');
+    if (!member.roles.cache.has(ban.id))
+      await member.roles.add(ban, 'Server tag required for client access');
+    return { state: 'missing-tag' };
+  }
+  if (member.roles.cache.has(ban.id)) await member.roles.remove(ban, 'Server tag is active');
+  if (dbRow?.tag_started && now - dbRow.tag_started >= tagWeek) {
+    db.prepare(
+      'UPDATE download_access SET tag_started=NULL,eligible_at=?,updated=? WHERE user=?',
+    ).run(now, now, member.id);
+    if (member.roles.cache.has(hold.id))
+      await member.roles.remove(hold, 'Seven-day server tag hold completed');
+    return { state: 'eligible' };
+  }
+  const started = dbRow?.tag_started || now;
+  db.prepare(
+    'INSERT INTO download_access(user,tag_started,eligible_at,updated) VALUES(?,?,NULL,?) ON CONFLICT(user) DO UPDATE SET tag_started=COALESCE(download_access.tag_started,excluded.tag_started),updated=excluded.updated',
+  ).run(member.id, started, now);
+  if (!member.roles.cache.has(hold.id)) await member.roles.add(hold, 'Seven-day server tag hold');
+  return { state: 'hold', started };
+}
 async function report(client, text) {
   console.log(new Date().toISOString(), text);
   const logId =
@@ -108,6 +166,31 @@ async function report(client, text) {
         })
         .catch(() => {});
   }
+}
+function germanModerationReason(reason) {
+  if (/prohibited language/i.test(reason)) return 'unzulässige Sprache';
+  if (/unapproved link|advertisement|advertising link/i.test(reason))
+    return 'nicht genehmigter Link oder Werbung';
+  if (/spam|repeated messages/i.test(reason)) return 'Spam oder wiederholte Nachrichten';
+  if (/mass.*mention|mention/i.test(reason)) return 'zu viele Erwähnungen';
+  if (/executable|script uploaded/i.test(reason)) return 'eine ausführbare Datei oder ein Skript';
+  if (/image|embed|sexual|violence|harassment|moderation/i.test(reason))
+    return 'unangemessener Bild- oder Einbettungsinhalt';
+  if (/permanent mute/i.test(reason)) return 'eine bestehende dauerhafte Stummschaltung';
+  return 'ein Verstoß gegen die Serverregeln';
+}
+function germanModerationAction(offence, outcome) {
+  if (/cannot be timed out/i.test(outcome))
+    return 'Warnung — Discord kann dieses Konto nicht stummschalten';
+  if (/could not apply/i.test(outcome))
+    return 'Die Stummschaltung konnte nicht angewendet werden; das Team wurde informiert';
+  if (/permanent mute/i.test(outcome))
+    return 'Dauerhafte Stummschaltung bis zur Aufhebung durch das Team';
+  if (/7-day mute/i.test(outcome)) return 'Stummschaltung für 7 Tage';
+  if (/3-day mute/i.test(outcome)) return 'Stummschaltung für 3 Tage';
+  if (/1-day mute/i.test(outcome)) return 'Stummschaltung für 1 Tag';
+  if (offence.days) return 'Stummschaltung angewendet';
+  return 'Warnung';
 }
 const products = { client: 'Client', accounts: 'Accounts', other: 'Something else' };
 let invitePromise;
@@ -235,6 +318,7 @@ partik.once(Events.ClientReady, () => {
 partik.on(Events.GuildMemberAdd, async (member) => {
   if (member.guild.id !== env.GUILD_ID || member.user.bot) return;
   try {
+    await reconcileDownloadAccess(member);
     const role = db.prepare("SELECT value FROM settings WHERE key='role:Member'").get()?.value;
     if (
       role &&
@@ -250,6 +334,53 @@ partik.on(Events.GuildMemberAdd, async (member) => {
   } catch (e) {
     console.error('Welcome/member role:', e.message);
   }
+});
+partik.on(Events.GuildMemberUpdate, (_old, member) => {
+  if (member.guild.id === env.GUILD_ID)
+    reconcileDownloadAccess(member).catch((e) => console.error('Download tag check:', e.message));
+});
+async function reconcileExistingDownloadMembers(guild) {
+  const fresh = await guild.fetch();
+  if (!fresh.features.includes('GUILD_TAGS')) {
+    console.log('Client tag gate is waiting for the server to unlock and configure Server Tags.');
+    return;
+  }
+  const members = await guild.members.fetch();
+  for (const member of members.values()) {
+    if (!member.user.bot)
+      await reconcileDownloadAccess(member).catch((e) =>
+        console.error('Download access check:', e.message),
+      );
+  }
+}
+partik.once(Events.ClientReady, async () => {
+  try {
+    const guild = await partik.guilds.fetch(env.GUILD_ID);
+    await reconcileExistingDownloadMembers(guild);
+    setInterval(
+      async () => {
+        const g = await partik.guilds.fetch(env.GUILD_ID);
+        if (!g.features.includes('GUILD_TAGS')) return;
+        const ids = db.prepare('SELECT user FROM download_access WHERE eligible_at IS NULL').all();
+        for (const { user } of ids) {
+          const member = await g.members.fetch(user).catch(() => null);
+          if (member)
+            await reconcileDownloadAccess(member).catch((e) =>
+              console.error('Download access refresh:', e.message),
+            );
+        }
+      },
+      10 * 60 * 1000,
+    ).unref();
+  } catch (e) {
+    console.error('Download gate setup:', e.message);
+  }
+});
+partik.on(Events.GuildUpdate, (_oldGuild, guild) => {
+  if (guild.id === env.GUILD_ID && guild.features.includes('GUILD_TAGS'))
+    reconcileExistingDownloadMembers(guild).catch((e) =>
+      console.error('Download gate activation:', e.message),
+    );
 });
 async function moderate(message, edited = false) {
   if (message.guildId !== env.GUILD_ID || message.author.bot || message.webhookId) return;
@@ -376,20 +507,34 @@ async function moderate(message, edited = false) {
         }
       : {}),
   }).catch((e) => console.error('Automod case log:', e.message));
+  const german = moderationLanguage(input.scan, reason) === 'de';
   await message.author
     .send({
       embeds: [
         new EmbedBuilder()
           .setColor(0xe74c3c)
-          .setTitle(brandTitle('Server moderation notice'))
-          .setDescription(`Your message in **${safeText(message.guild.name)}** was removed.`)
+          .setTitle(brandTitle(german ? 'Moderationshinweis' : 'Server moderation notice'))
+          .setDescription(
+            german
+              ? `Deine Nachricht in **${safeText(message.guild.name)}** wurde entfernt.`
+              : `Your message in **${safeText(message.guild.name)}** was removed.`,
+          )
           .addFields(
-            { name: 'Reason', value: reason },
-            { name: 'Offence', value: String(offence.count), inline: true },
-            { name: 'Action', value: outcome, inline: true },
+            {
+              name: german ? 'Grund' : 'Reason',
+              value: german ? germanModerationReason(reason) : reason,
+            },
+            { name: german ? 'Verstoß' : 'Offence', value: String(offence.count), inline: true },
+            {
+              name: german ? 'Maßnahme' : 'Action',
+              value: german ? germanModerationAction(offence, outcome) : outcome,
+              inline: true,
+            },
           )
           .setFooter({
-            text: 'Disagree? Open an appeal ticket. Spam bursts count as one incident.',
+            text: german
+              ? 'Nicht einverstanden? Öffne ein Einspruchsticket. Eine Spam-Serie zählt als ein Verstoß.'
+              : 'Disagree? Open an appeal ticket. Spam bursts count as one incident.',
           }),
       ],
       allowedMentions: { parse: [] },
@@ -449,6 +594,7 @@ const utility = makeClient(
       .addBooleanOption((o) =>
         o.setName('anonymous').setDescription('Hide your name from the public post (default: yes)'),
       ),
+    command('download', 'Get the client download after the server-tag hold'),
   ],
   true,
 );
@@ -742,6 +888,44 @@ async function closeTicket(i) {
   await i.editReply('Ticket closed and locked.');
 }
 onInteraction(utility, async (i) => {
+  if (i.isChatInputCommand() && i.commandName === 'download') {
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
+    const member = await i.guild.members.fetch(i.user.id);
+    const access = await reconcileDownloadAccess(member);
+    if (access.state === 'tag-unavailable')
+      return i.editReply(
+        'The server has not unlocked Discord Server Tags yet, so client access is not active.',
+      );
+    if (access.state === 'missing-tag')
+      return i.editReply(
+        'Equip this server’s tag in your Discord profile to start the seven-day hold.',
+      );
+    if (access.state === 'hold')
+      return i.editReply(
+        `Keep the server tag equipped. Your hold ends <t:${Math.floor((access.started + tagWeek) / 1000)}:R>.`,
+      );
+    let download;
+    try {
+      download = new URL(env.CLIENT_DOWNLOAD_URL);
+    } catch {
+      return i.editReply(
+        'Your access is ready, but staff still need to configure the client download link.',
+      );
+    }
+    if (download.protocol !== 'https:')
+      return i.editReply('The configured client link must use HTTPS. Please ask staff for help.');
+    return i.editReply({
+      content: 'Your client download is ready.',
+      components: [
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setLabel('Download client')
+            .setStyle(ButtonStyle.Link)
+            .setURL(download.href),
+        ),
+      ],
+    });
+  }
   if (i.isChatInputCommand() && i.commandName === 'basefind') {
     await i.deferReply({ flags: MessageFlags.Ephemeral });
     const config = await infrastructure;
@@ -1013,13 +1197,28 @@ assistance.once(Events.ClientReady, async () => {
 });
 const busy = new Set();
 const lastAnswer = new Map();
-async function answer(channel, question) {
-  if (busy.has(channel.id)) return null;
-  busy.add(channel.id);
+function isPublicCommunityChat(channel) {
+  return Boolean(
+    channel.guildId === env.GUILD_ID &&
+      channel.type === ChannelType.GuildText &&
+      (channel.parent?.name === 'Community' || channel.id === '1565712510680568019') &&
+      channel.permissionsFor(channel.guild.roles.everyone)?.has(P.SendMessages),
+  );
+}
+async function answer(channel, question, askerId) {
+  const row = ticket(channel.id);
+  const owner = row?.owner || askerId;
+  if (!owner) return null;
+  const memoryChannel = row ? channel.id : `chat:${channel.id}:${owner}`;
+  if (busy.has(memoryChannel)) return null;
+  if (!row && Date.now() - (lastAnswer.get(memoryChannel) || 0) < 5000) return null;
+  busy.add(memoryChannel);
   try {
-    const row = ticket(channel.id);
     const config = row?.ai ? env : { ...env, AI_PROVIDER: 'off' };
-    if (!db.prepare('SELECT channel FROM support_memory WHERE channel=?').get(channel.id)) {
+    if (
+      row &&
+      !db.prepare('SELECT channel FROM support_memory WHERE channel=?').get(memoryChannel)
+    ) {
       const messages = await channel.messages.fetch({ limit: 50 });
       const welcome = messages.find(
         (m) =>
@@ -1027,18 +1226,27 @@ async function answer(channel, question) {
           m.embeds.some((e) => e.fields?.some((f) => f.name === 'Subject')),
       );
       const subject = welcome?.embeds[0]?.fields.find((f) => f.name === 'Subject')?.value;
-      if (subject) remember(db, channel.id, row.owner, subject, '', inferTopic(subject, row.kind));
+      if (subject) remember(db, memoryChannel, owner, subject, '', inferTopic(subject, row.kind));
     }
-    const context = contextualQuestion(db, channel.id, row.owner, question, row.kind);
+    const context = contextualQuestion(
+      db,
+      memoryChannel,
+      owner,
+      question,
+      row?.kind || 'support',
+      Date.now(),
+      channel.id,
+    );
     const result = context.corrected || (await supportAnswer(db, context.question, config));
     // Closing a ticket while AI is running must stop the pending public answer.
     const current = ticket(channel.id);
-    if (current?.state !== 'open' || (row?.ai && !current.ai)) return null;
-    remember(db, channel.id, row.owner, question, result, context.topic);
-    lastAnswer.set(channel.id, Date.now());
+    if (row && (current?.state !== 'open' || (row.ai && !current.ai))) return null;
+    if (!row && !isPublicCommunityChat(channel)) return null;
+    remember(db, memoryChannel, owner, question, result, context.topic);
+    lastAnswer.set(memoryChannel, Date.now());
     return safeText(result);
   } finally {
-    busy.delete(channel.id);
+    busy.delete(memoryChannel);
   }
 }
 onInteraction(assistance, async (i) => {
@@ -1142,6 +1350,25 @@ onInteraction(assistance, async (i) => {
 assistance.on(Events.MessageCreate, async (m) => {
   if (m.guildId !== env.GUILD_ID || m.author.bot) return;
   const row = ticket(m.channelId);
+  if (!row && isPublicCommunityChat(m.channel)) {
+    const directed =
+      m.mentions.users.has(assistance.user.id) ||
+      (m.reference?.messageId &&
+        (await m.channel.messages.fetch(m.reference.messageId).catch(() => null))?.author.id ===
+          assistance.user.id);
+    if (!directed || !m.content.trim()) return;
+    const question = m.content.replace(new RegExp(`<@!?${assistance.user.id}>`, 'g'), '').trim();
+    try {
+      await m.channel.sendTyping();
+      const result = await answer(m.channel, question, m.author.id);
+      if (result) await m.channel.send({ content: result, allowedMentions: { parse: [] } });
+    } catch {
+      await m.channel
+        .send('I could not answer right now. Please open a support ticket.')
+        .catch(() => {});
+    }
+    return;
+  }
   if (!row || row.state !== 'open' || m.author.id !== row.owner || !m.content.trim()) return;
   const directed =
     m.mentions.users.has(assistance.user.id) ||

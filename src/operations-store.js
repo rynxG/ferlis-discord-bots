@@ -27,6 +27,7 @@ export function operationsSchema(db) {
  CREATE TABLE IF NOT EXISTS retained_messages(kind TEXT NOT NULL,channel TEXT NOT NULL,message TEXT PRIMARY KEY,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS voice_preferences(user TEXT PRIMARY KEY,name TEXT,member_limit INTEGER NOT NULL DEFAULT 0,locked INTEGER NOT NULL DEFAULT 0);
  CREATE TABLE IF NOT EXISTS voice_trusted(owner TEXT NOT NULL,user TEXT NOT NULL,PRIMARY KEY(owner,user));
+ CREATE TABLE IF NOT EXISTS download_access(user TEXT PRIMARY KEY,tag_started INTEGER,eligible_at INTEGER,updated INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS application_reviews(id TEXT PRIMARY KEY,status TEXT NOT NULL,actor TEXT NOT NULL,updated INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS operations_audit(id INTEGER PRIMARY KEY,actor TEXT NOT NULL,action TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS backup_runs(path TEXT PRIMARY KEY,created INTEGER NOT NULL,size INTEGER NOT NULL);
@@ -75,6 +76,7 @@ export function contextualQuestion(
   question,
   ticketKind = 'support',
   now = Date.now(),
+  correctionChannel = channel,
 ) {
   const saved = db
     .prepare('SELECT * FROM support_memory WHERE channel=? AND owner=?')
@@ -97,7 +99,7 @@ export function contextualQuestion(
     .prepare(
       'SELECT question,answer FROM support_corrections WHERE channel=? ORDER BY created DESC LIMIT 30',
     )
-    .all(channel);
+    .all(correctionChannel);
   const corrected = corrections.find(
     (r) =>
       normalize(r.question) === normalize(question) ||

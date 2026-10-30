@@ -6,7 +6,15 @@ import { ChannelType, PermissionFlagsBits as P, EmbedBuilder, AttachmentBuilder 
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-export const roleNames = ['Member', 'Ferlis+', 'Support Team', 'Development Team', 'Moderator'];
+export const roleNames = [
+  'Member',
+  'Ferlis+',
+  'Support Team',
+  'Development Team',
+  'Moderator',
+  'Tag Hold',
+  'Access Ban',
+];
 export async function ensureServerFeatures(guild, db) {
   await guild.roles.fetch();
   const hardened =
