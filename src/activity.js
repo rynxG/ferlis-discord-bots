@@ -26,6 +26,16 @@ const rouletteColor = (number) =>
   number === 0 ? 'green' : redNumbers.has(number) ? 'red' : 'black';
 const colorEmoji = (color) => ({ red: '🔴', black: '⚫', green: '🟢' })[color];
 const pick = (items) => items[randomInt(items.length)];
+function handValue(cards) {
+  let total = cards.reduce((sum, card) => sum + card.value, 0);
+  let aces = cards.filter((card) => card.rank === 'A').length;
+  while (total > 21 && aces > 0) {
+    total -= 10;
+    aces--;
+  }
+  return total;
+}
+
 const shuffle = (items) => {
   const result = [...items];
   for (let index = result.length - 1; index > 0; index--) {
@@ -101,12 +111,12 @@ async function createRouletteGif(result) {
 async function createCoinGif(result) {
   const width = 360;
   const height = 260;
-  const renderWidth = 1080;
-  const renderHeight = 780;
+  const renderWidth = 720;
+  const renderHeight = 520;
   const centerX = width / 2;
   const radius = 56;
   const frames = [];
-  const frameCount = 36;
+  const frameCount = 24;
   const finalAngle = result === 'heads' ? Math.PI * 8 : Math.PI * 9;
   const logoBuffer = await sharp(
     await readFile(new URL('../assets/chrisp-logo-white.png', import.meta.url)),
@@ -135,7 +145,7 @@ async function createCoinGif(result) {
     const shadowOpacity = 0.48 - 0.24 * liftGlow;
     const edgeRidges = Array.from({ length: 9 }, (_, index) => {
       const x = -40 + index * 10;
-      return `<path d="M ${x} -5 v 10"/>`;
+      return `M ${x} -5 v 10`;
     }).join('');
     const coin = `
       <g transform="translate(${centerX} ${landedY})">
@@ -185,11 +195,11 @@ async function createCoinGif(result) {
   return sharp(frames, { join: { animated: true } })
     .gif({
       loop: 1,
-      delay: frames.map((_, index) => (index > 29 ? 110 : 65)),
+      delay: frames.map((_, index) => (index > 19 ? 125 : 100)),
       colours: 128,
       dither: 0.15,
       interFrameMaxError: 0,
-      effort: 8,
+      effort: 4,
     })
     .toBuffer();
 }
@@ -197,10 +207,10 @@ async function createCoinGif(result) {
 async function createBlackjackGif(game, revealDealer = false) {
   const width = 360;
   const height = 230;
-  const renderWidth = 1080;
-  const renderHeight = 690;
+  const renderWidth = 720;
+  const renderHeight = 460;
   const frames = [];
-  const frameCount = 14;
+  const frameCount = 10;
   const cardWidth = 44;
   const cardHeight = 64;
   const displayCards = (cards, y, visibleCount, hideHole = false) => {
@@ -240,57 +250,40 @@ async function createBlackjackGif(game, revealDealer = false) {
   return sharp(frames, { join: { animated: true } })
     .gif({
       loop: 1,
-      delay: frames.map((_, index) => (index === frameCount - 1 ? 180 : 75)),
+      delay: frames.map((_, index) => (index === frameCount - 1 ? 180 : 95)),
       colours: 128,
       dither: 0.15,
       interFrameMaxError: 0,
-      effort: 8,
+      effort: 4,
     })
     .toBuffer();
 }
 
-async function createMinesGif(game, revealAllMines = false) {
+async function createMinesImage(game, revealAllMines = false) {
   const size = 1080;
   const gap = 18;
   const tileSize = 150;
   const boardSize = tileSize * 5 + gap * 4;
   const origin = (size - boardSize) / 2;
-  const frames = [];
-  const frameCount = 10;
-
-  for (let frame = 0; frame < frameCount; frame++) {
-    const progress = frame / (frameCount - 1);
-    const glow = (0.18 + 0.16 * Math.sin(progress * Math.PI * 2)).toFixed(2);
-    const tiles = Array.from({ length: 25 }, (_, index) => {
-      const row = Math.floor(index / 5);
-      const column = index % 5;
-      const x = origin + column * (tileSize + gap);
-      const y = 160 + row * (tileSize + gap);
-      const state = game.revealed.get(index);
-      const showMine = state === 'mine' || (revealAllMines && game.minePositions.has(index));
-      const safe = state === 'safe';
-      const fill = showMine ? '#7e2633' : safe ? '#145c43' : '#29212c';
-      const symbol = showMine
-        ? `<circle cx="${x + tileSize / 2}" cy="${y + tileSize / 2}" r="38" fill="#e44e59"/><path d="M ${x + 75} ${y + 91} l -27 28 14 14 27 -28 28 28 14 -14 -28 -28 28 -28 -14 -14 -28 27 -27 -27 -14 14z" fill="#ffe5c4"/>`
-        : safe
-          ? `<path d="M ${x + 75} ${y + 38} L ${x + 111} ${y + 75} L ${x + 75} ${y + 112} L ${x + 39} ${y + 75} Z" fill="#5ee3a8" stroke="#c1ffe3" stroke-width="6"/><path d="M ${x + 75} ${y + 51} L ${x + 99} ${y + 75} L ${x + 75} ${y + 99} L ${x + 51} ${y + 75} Z" fill="#e6fff5"/>`
-          : `<rect x="${x + 18}" y="${y + 18}" width="${tileSize - 36}" height="${tileSize - 36}" rx="20" fill="none" stroke="#a784bb" stroke-opacity="${glow}" stroke-width="5"/>`;
-      return `<g><rect x="${x}" y="${y}" width="${tileSize}" height="${tileSize}" rx="22" fill="${fill}" stroke="${safe ? '#57d79e' : showMine ? '#ef6b74' : '#55475d'}" stroke-width="6"/><rect x="${x + 8}" y="${y + 8}" width="${tileSize - 16}" height="${tileSize - 16}" rx="16" fill="none" stroke="white" stroke-opacity=".06" stroke-width="3"/>${symbol}</g>`;
-    }).join('');
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#301923"/><stop offset="1" stop-color="#110d15"/></linearGradient></defs><rect width="100%" height="100%" rx="36" fill="url(#bg)"/><text x="540" y="86" text-anchor="middle" font-family="Arial,sans-serif" font-size="46" font-weight="800" fill="#ffe7c4">MINES</text><text x="540" y="130" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#d4c3d8">${game.minesCount} mines · ${game.revealed.size} safe tiles</text>${tiles}<text x="540" y="1030" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" fill="#d7c5b1">CHOOSE A TILE · CASH OUT ANY TIME</text></svg>`;
-    frames.push(await sharp(Buffer.from(svg)).png().toBuffer());
-  }
-
-  return sharp(frames, { join: { animated: true } })
-    .gif({
-      loop: 1,
-      delay: frames.map((_, index) => (index === frameCount - 1 ? 180 : 80)),
-      colours: 96,
-      dither: 0.1,
-      interFrameMaxError: 0,
-      effort: 8,
-    })
-    .toBuffer();
+  const glow = '0.28';
+  const tiles = Array.from({ length: 25 }, (_, index) => {
+    const row = Math.floor(index / 5);
+    const column = index % 5;
+    const x = origin + column * (tileSize + gap);
+    const y = 160 + row * (tileSize + gap);
+    const state = game.revealed.get(index);
+    const showMine = state === 'mine' || (revealAllMines && game.minePositions.has(index));
+    const safe = state === 'safe';
+    const fill = showMine ? '#7e2633' : safe ? '#145c43' : '#29212c';
+    const symbol = showMine
+      ? `<circle cx="${x + tileSize / 2}" cy="${y + tileSize / 2}" r="38" fill="#e44e59"/><path d="M ${x + 75} ${y + 91} l -27 28 14 14 27 -28 28 28 14 -14 -28 -28 28 -28 -14 -14 -28 27 -27 -27 -14 14z" fill="#ffe5c4"/>`
+      : safe
+        ? `<path d="M ${x + 75} ${y + 38} L ${x + 111} ${y + 75} L ${x + 75} ${y + 112} L ${x + 39} ${y + 75} Z" fill="#5ee3a8" stroke="#c1ffe3" stroke-width="6"/><path d="M ${x + 75} ${y + 51} L ${x + 99} ${y + 75} L ${x + 75} ${y + 99} L ${x + 51} ${y + 75} Z" fill="#e6fff5"/>`
+        : `<rect x="${x + 18}" y="${y + 18}" width="${tileSize - 36}" height="${tileSize - 36}" rx="20" fill="none" stroke="#a784bb" stroke-opacity="${glow}" stroke-width="5"/>`;
+    return `<g><rect x="${x}" y="${y}" width="${tileSize}" height="${tileSize}" rx="22" fill="${fill}" stroke="${safe ? '#57d79e' : showMine ? '#ef6b74' : '#55475d'}" stroke-width="6"/><rect x="${x + 8}" y="${y + 8}" width="${tileSize - 16}" height="${tileSize - 16}" rx="16" fill="none" stroke="white" stroke-opacity=".06" stroke-width="3"/>${symbol}</g>`;
+  }).join('');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#301923"/><stop offset="1" stop-color="#110d15"/></linearGradient></defs><rect width="100%" height="100%" rx="36" fill="url(#bg)"/><text x="540" y="86" text-anchor="middle" font-family="Arial,sans-serif" font-size="46" font-weight="800" fill="#ffe7c4">MINES</text><text x="540" y="130" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#d4c3d8">${game.minesCount} mines · ${game.revealed.size} safe tiles</text>${tiles}<text x="540" y="1030" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" fill="#d7c5b1">CHOOSE A TILE · CASH OUT ANY TIME</text></svg>`;
+  return sharp(Buffer.from(svg)).resize(720, 720).png({ compressionLevel: 6 }).toBuffer();
 }
 
 const questions = [
@@ -621,16 +614,6 @@ export function installActivity(client, db) {
     return cards;
   }
 
-  function handValue(cards) {
-    let total = cards.reduce((sum, card) => sum + card.value, 0);
-    let aces = cards.filter((card) => card.rank === 'A').length;
-    while (total > 21 && aces > 0) {
-      total -= 10;
-      aces--;
-    }
-    return total;
-  }
-
   function renderBlackjack(game, revealDealer = false, status = '') {
     const dealerCards = revealDealer
       ? game.dealer.map((card) => `**${card.rank}${card.suit}**`).join('  ')
@@ -709,15 +692,15 @@ export function installActivity(client, db) {
       .setDescription(
         `Bet: **${game.bet} points** · Mines: **${game.minesCount}**\nSafe tiles: **${game.revealed.size}** · Cash-out: **${payout} points** (${multiplier.toFixed(2)}×)${status ? `\n\n${status}` : '\n\nChoose another tile or cash out.'}\n\n*Virtual points only; no purchase, transfer, or cash-out.*`,
       )
-      .setImage('attachment://mines-board.gif');
+      .setImage('attachment://mines-board.png');
   }
 
   async function updateMinesBoard(message, game, id, status = '', revealAll = false) {
     let image;
     try {
-      image = await renderGif(() => createMinesGif(game, revealAll));
+      image = await createMinesImage(game, revealAll);
     } catch (error) {
-      console.error('Mines GIF generation failed; refunding the active bet.', error);
+      console.error('Mines board image generation failed; refunding the active bet.', error);
       const active = minesGames.has(id);
       const balance = active ? settleBet(id, game.bet) : null;
       minesGames.delete(id);
@@ -726,8 +709,8 @@ export function installActivity(client, db) {
           minesEmbed(
             game,
             active
-              ? `The board animation failed. Your bet was returned; balance: **${balance} points**.`
-              : status || 'The board animation could not be updated.',
+              ? `The board image failed. Your bet was returned; balance: **${balance} points**.`
+              : status || 'The board image could not be updated.',
           ),
         ],
         components: [],
@@ -735,7 +718,7 @@ export function installActivity(client, db) {
     }
     return message.edit({
       embeds: [minesEmbed(game, status)],
-      files: [new AttachmentBuilder(image, { name: 'mines-board.gif' })],
+      files: [new AttachmentBuilder(image, { name: 'mines-board.png' })],
       attachments: [],
       components: minesComponents(id, game, Boolean(status), revealAll),
       allowedMentions: { parse: [] },
@@ -1054,11 +1037,11 @@ export function installActivity(client, db) {
       await interaction.deferReply();
       let image;
       try {
-        image = await renderGif(() => createMinesGif(game));
+        image = await createMinesImage(game);
       } catch (error) {
         minesGames.delete(reservation.id);
         settleBet(reservation.id, bet);
-        console.error('Mines GIF generation failed; the bet was refunded.', error);
+        console.error('Mines board image generation failed; the bet was refunded.', error);
         return interaction.editReply({
           content: 'The board could not be rendered, so your bet was refunded.',
         });
@@ -1071,9 +1054,9 @@ export function installActivity(client, db) {
             .setDescription(
               `Bet: **${bet} points** · Mines: **${minesCount}**\nChoose a tile, then cash out whenever you like. Virtual points only.`,
             )
-            .setImage('attachment://mines-board.gif'),
+            .setImage('attachment://mines-board.png'),
         ],
-        files: [new AttachmentBuilder(image, { name: 'mines-board.gif' })],
+        files: [new AttachmentBuilder(image, { name: 'mines-board.png' })],
         components: minesComponents(reservation.id, game),
         allowedMentions: { parse: [] },
       });
