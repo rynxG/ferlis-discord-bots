@@ -1269,7 +1269,7 @@ const assistance = makeClient(
         .setMaxLength(2000)
         .setRequired(true),
     ),
-    command('translate', 'Translate text and post the result in this channel')
+    command('translate', 'Translate with MyMemory; the result is posted publicly')
       .addStringOption((o) =>
         o
           .setName('from')
@@ -1295,7 +1295,7 @@ const assistance = makeClient(
       .addStringOption((o) =>
         o
           .setName('text')
-          .setDescription('Text to translate; result will be public in this channel')
+          .setDescription('Sent to MyMemory; translated result is public in this channel')
           .setRequired(true)
           .setMaxLength(1500),
       ),
