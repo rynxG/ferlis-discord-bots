@@ -96,35 +96,45 @@ async function createRouletteGif(result) {
 
 async function createCoinGif(result) {
   const width = 360;
-  const height = 240;
+  const height = 260;
   const renderWidth = 1080;
-  const renderHeight = 720;
+  const renderHeight = 780;
   const centerX = width / 2;
-  const centerY = 112;
-  const radius = 88;
+  const radius = 76;
   const frames = [];
-  const frameCount = 32;
-  const finalAngle = result === 'heads' ? Math.PI * 6 : Math.PI * 7;
+  const frameCount = 36;
+  const finalAngle = result === 'heads' ? Math.PI * 8 : Math.PI * 9;
 
   for (let frame = 0; frame < frameCount; frame++) {
     const progress = frame / (frameCount - 1);
-    const eased = 1 - (1 - progress) ** 4;
-    const angle = finalAngle * eased;
+    const flight = Math.min(progress / 0.84, 1);
+    const spin = Math.min(progress / 0.82, 1);
+    const easedSpin = 1 - (1 - spin) ** 3;
+    const angle = finalAngle * easedSpin;
     const face = Math.cos(angle) >= 0 ? 'HEADS' : 'TAILS';
-    const scaleX = Math.max(0.045, Math.abs(Math.cos(angle)));
+    const scaleY = Math.max(0.055, Math.abs(Math.cos(angle)));
+    const centerY = 166 - 78 * Math.sin(Math.PI * flight);
+    const centerCoinX = 145 + 35 * (1 - Math.exp(-progress * 5));
+    const handOpacity = Math.max(0, 1 - progress / 0.15);
+    const impact = progress > 0.84 ? (progress - 0.84) / 0.16 : 0;
+    const bounce = progress > 0.84 ? Math.sin(impact * Math.PI * 2) * 5 * (1 - impact) : 0;
+    const landedY = centerY - bounce;
+    const shadowWidth = 42 + 32 * Math.sin(Math.PI * flight);
+    const shadowOpacity = 0.48 - 0.25 * Math.sin(Math.PI * flight);
     const coin =
-      scaleX < 0.24
-        ? `<ellipse cx="${centerX}" cy="${centerY}" rx="${radius * 0.2}" ry="${radius}" fill="url(#edge)" stroke="#ffe8a8" stroke-width="3"/><path d="M ${centerX - 8} ${centerY - 76} v 152 M ${centerX} ${centerY - 82} v 164 M ${centerX + 8} ${centerY - 76} v 152" stroke="#fff0b2" stroke-width="2" opacity=".78"/>`
-        : `<g transform="translate(${centerX} ${centerY}) scale(${scaleX} 1)"><circle r="${radius + 7}" fill="#70430f" stroke="#f6d784" stroke-width="3"/><circle r="${radius}" fill="url(#gold)" stroke="#fff2c3" stroke-width="3"/><circle r="${radius - 9}" fill="none" stroke="#986018" stroke-width="2"/><circle r="${radius - 15}" fill="none" stroke="#f8df98" stroke-width="1.5" opacity=".9"/><circle cx="0" cy="-${radius - 15}" r="3" fill="#fff2c3"/><circle cx="0" cy="${radius - 15}" r="3" fill="#fff2c3"/><text x="0" y="-25" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="800" letter-spacing="3" fill="#6e420e">${face}</text><text x="0" y="27" text-anchor="middle" dominant-baseline="middle" font-family="Georgia,serif" font-size="58" font-weight="800" fill="#74470f" stroke="#f8dc8c" stroke-width="1.2" paint-order="stroke">${face === 'HEADS' ? 'H' : 'T'}</text><text x="0" y="60" text-anchor="middle" font-family="Arial,sans-serif" font-size="8" font-weight="700" letter-spacing="2" fill="#68400e">COIN FLIP</text></g>`;
-    const streak = Math.sin(progress * Math.PI);
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${renderWidth}" height="${renderHeight}" viewBox="0 0 ${width} ${height}"><defs><radialGradient id="backdrop" cx="50%" cy="43%" r="74%"><stop offset="0" stop-color="#492832"/><stop offset=".58" stop-color="#26151f"/><stop offset="1" stop-color="#100d16"/></radialGradient><radialGradient id="halo"><stop offset="0" stop-color="#ffca62" stop-opacity=".26"/><stop offset="1" stop-color="#ffca62" stop-opacity="0"/></radialGradient><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff5c7"/><stop offset=".2" stop-color="#f5d276"/><stop offset=".48" stop-color="#bd781e"/><stop offset=".72" stop-color="#f4cd6a"/><stop offset="1" stop-color="#7c4a12"/></linearGradient><linearGradient id="edge" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#835014"/><stop offset=".5" stop-color="#ffe9a2"/><stop offset="1" stop-color="#8c5717"/></linearGradient></defs><rect width="100%" height="100%" rx="22" fill="url(#backdrop)"/><rect x="7" y="7" width="346" height="226" rx="18" fill="none" stroke="#785469" stroke-width="1.5"/><ellipse cx="${centerX}" cy="108" rx="142" ry="120" fill="url(#halo)" opacity="${streak.toFixed(2)}"/><path d="M 67 125 C 95 58 265 58 293 125" fill="none" stroke="#f1ca78" stroke-opacity="${(0.12 + 0.22 * streak).toFixed(2)}" stroke-width="2"/><path d="M 82 144 C 106 83 254 83 278 144" fill="none" stroke="#f8e6ad" stroke-opacity="${(0.08 + 0.14 * streak).toFixed(2)}" stroke-width="1.3"/><text x="${centerX}" y="34" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="800" letter-spacing="4" fill="#f5dfba">COIN FLIP</text><text x="${centerX}" y="54" text-anchor="middle" font-family="Arial,sans-serif" font-size="8" font-weight="600" letter-spacing="2" fill="#ba9baa">FAIR 50 / 50</text><ellipse cx="${centerX}" cy="218" rx="69" ry="10" fill="#09070c" opacity=".72"/><ellipse cx="${centerX}" cy="214" rx="54" ry="5" fill="#d7a54b" opacity=".12"/>${coin}<text x="${centerX}" y="229" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="600" letter-spacing="2" fill="#aa8798">SECURE RANDOM TOSS</text></svg>`;
+      scaleY < 0.16
+        ? `<g transform="translate(${centerCoinX} ${landedY})"><rect x="-${radius}" y="-9" width="${radius * 2}" height="18" rx="8" fill="url(#edge)" stroke="#fff0b4" stroke-width="2"/><path d="${Array.from({ length: 13 }, (_, i) => `M ${-radius + 9 + i * 11} -7 v 14`).join(' ')}" stroke="#875416" stroke-width="2" opacity=".9"/><path d="M -62 -4 h124 M -62 3 h124" stroke="#fff0b4" stroke-width="1" opacity=".65"/></g>`
+        : `<g transform="translate(${centerCoinX} ${landedY}) scale(1 ${scaleY})"><circle r="${radius + 8}" fill="#56340e" stroke="#f8e6a8" stroke-width="3"/><circle r="${radius + 3}" fill="url(#rim)" stroke="#8b5d16" stroke-width="3"/><circle r="${radius - 4}" fill="url(#gold)" stroke="#fff0b4" stroke-width="2"/><circle r="${radius - 12}" fill="none" stroke="#875414" stroke-width="2.2"/><circle r="${radius - 17}" fill="none" stroke="#fff0b4" stroke-width="1.3"/><circle r="${radius - 23}" fill="none" stroke="#a66e1c" stroke-width="1" stroke-dasharray="2 3"/><path d="M -43 -38 Q 0 -63 43 -38 M -43 38 Q 0 63 43 38" fill="none" stroke="#fff1bd" stroke-width="1.2" opacity=".8"/><text x="0" y="-25" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="800" letter-spacing="2.5" fill="#70440f">${face}</text><text x="0" y="18" text-anchor="middle" dominant-baseline="middle" font-family="Georgia,serif" font-size="52" font-weight="800" fill="url(#engraving)" stroke="#f9df91" stroke-width="1.3" paint-order="stroke">${face === 'HEADS' ? 'H' : 'T'}</text><text x="0" y="49" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="800" letter-spacing="2" fill="#70440f">CHRISP • 50 / 50</text><circle cx="0" cy="-${radius - 10}" r="2.5" fill="#fff7d7"/><circle cx="0" cy="${radius - 10}" r="2.5" fill="#fff7d7"/></g>`;
+    const hand = `<g opacity="${handOpacity.toFixed(2)}"><path d="M 0 229 C 22 219 45 198 70 176 C 88 161 101 151 113 151 C 123 151 128 160 122 168 C 108 184 91 198 77 212 C 62 225 42 239 20 247 Z" fill="url(#skin)" stroke="#d7a789" stroke-width="2"/><path d="M 0 253 C 27 245 49 229 71 216 C 88 206 103 199 112 202 C 121 206 121 215 112 222 C 92 238 69 251 46 260 H 0 Z" fill="url(#skinLight)" stroke="#edc0a0" stroke-width="2"/><path d="M 17 228 C 48 214 71 188 98 170 M 15 250 C 43 239 65 221 89 210" fill="none" stroke="#f7d1ad" stroke-width="2" opacity=".7"/><path d="M 94 169 Q 106 161 115 161 M 89 212 Q 101 206 110 207" fill="none" stroke="#8c5140" stroke-width="1.5" opacity=".7"/></g>`;
+    const liftGlow = Math.sin(Math.PI * flight);
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${renderWidth}" height="${renderHeight}" viewBox="0 0 ${width} ${height}"><defs><radialGradient id="backdrop" cx="50%" cy="42%" r="78%"><stop offset="0" stop-color="#492832"/><stop offset=".58" stop-color="#26151f"/><stop offset="1" stop-color="#100d16"/></radialGradient><radialGradient id="halo"><stop offset="0" stop-color="#ffca62" stop-opacity=".28"/><stop offset="1" stop-color="#ffca62" stop-opacity="0"/></radialGradient><radialGradient id="gold" cx="32%" cy="26%" r="78%"><stop offset="0" stop-color="#fffbe0"/><stop offset=".14" stop-color="#f8e6a2"/><stop offset=".34" stop-color="#d69b36"/><stop offset=".58" stop-color="#f4ce68"/><stop offset=".79" stop-color="#ad6b17"/><stop offset="1" stop-color="#f3d477"/></radialGradient><linearGradient id="rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0b6"/><stop offset=".3" stop-color="#a66c1c"/><stop offset=".62" stop-color="#ffe6a0"/><stop offset="1" stop-color="#8a5717"/></linearGradient><linearGradient id="edge" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff2c2"/><stop offset=".25" stop-color="#b87c27"/><stop offset=".5" stop-color="#ffe7a0"/><stop offset=".76" stop-color="#8a5717"/><stop offset="1" stop-color="#f8df99"/></linearGradient><linearGradient id="engraving" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#87551a"/><stop offset=".5" stop-color="#f3d982"/><stop offset="1" stop-color="#765018"/></linearGradient><linearGradient id="skin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f2c29a"/><stop offset=".48" stop-color="#d99572"/><stop offset="1" stop-color="#9d5e4d"/></linearGradient><linearGradient id="skinLight" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f5c8a5"/><stop offset=".55" stop-color="#dc9d7d"/><stop offset="1" stop-color="#aa6955"/></linearGradient></defs><rect width="100%" height="100%" rx="22" fill="url(#backdrop)"/><rect x="7" y="7" width="346" height="246" rx="18" fill="none" stroke="#785469" stroke-width="1.5"/><ellipse cx="180" cy="119" rx="130" ry="115" fill="url(#halo)" opacity="${liftGlow.toFixed(2)}"/><text x="180" y="31" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="800" letter-spacing="4" fill="#f5dfba">COIN FLIP</text><text x="180" y="49" text-anchor="middle" font-family="Arial,sans-serif" font-size="8" font-weight="600" letter-spacing="2" fill="#ba9baa">FAIR 50 / 50</text><ellipse cx="${centerCoinX + 3}" cy="224" rx="${shadowWidth}" ry="9" fill="#08060b" opacity="${shadowOpacity.toFixed(2)}"/><ellipse cx="${centerCoinX}" cy="221" rx="${shadowWidth * 0.72}" ry="3" fill="#d7a54b" opacity="${(0.13 - 0.08 * liftGlow).toFixed(2)}"/>${hand}${coin}<path d="M ${centerCoinX + radius * 0.68} ${landedY - radius * 0.35} q 15 -10 22 -21" fill="none" stroke="#ffe3a0" stroke-opacity="${(0.08 + 0.28 * liftGlow).toFixed(2)}" stroke-width="2"/><text x="180" y="246" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="600" letter-spacing="2" fill="#aa8798">THUMB-FLICK TOSS · SECURE RANDOM RESULT</text></svg>`;
     frames.push(await sharp(Buffer.from(svg)).png().toBuffer());
   }
 
   return sharp(frames, { join: { animated: true } })
     .gif({
       loop: 1,
-      delay: frames.map((_, index) => (index > 23 ? 120 : 70)),
+      delay: frames.map((_, index) => (index > 29 ? 110 : 65)),
       colours: 128,
       dither: 0.15,
       interFrameMaxError: 0,
