@@ -20,6 +20,7 @@ const maxBet = 100;
 const standardHourlyGambleLimit = 15;
 const privilegedHourlyGambleLimit = 40;
 const hour = 60 * 60 * 1000;
+const gameTimeoutMs = 5 * 60 * 1000;
 const redNumbers = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
 const rouletteColor = (number) =>
   number === 0 ? 'green' : redNumbers.has(number) ? 'red' : 'black';
@@ -478,6 +479,13 @@ export function installActivity(client, db) {
   const addPoints = db.prepare('UPDATE activity_users SET points=points+? WHERE user=?');
   const blackjacks = new Map();
   const minesGames = new Map();
+  const gameTimeouts = new Map();
+
+  function clearGameTimeout(id) {
+    const timeout = gameTimeouts.get(id);
+    if (timeout) clearTimeout(timeout);
+    gameTimeouts.delete(id);
+  }
 
   function gambleLimitFor(interaction) {
     const member = interaction.member;
@@ -582,6 +590,7 @@ export function installActivity(client, db) {
   function settleBet(id, payout) {
     const game = db.prepare('SELECT user FROM activity_games WHERE id=?').get(id);
     if (!game) return null;
+    clearGameTimeout(id);
     db.exec('BEGIN IMMEDIATE');
     try {
       if (payout) addPoints.run(payout, game.user);
@@ -687,7 +696,15 @@ export function installActivity(client, db) {
     const multiplier = minesMultiplier(game);
     const payout = Math.floor(game.bet * multiplier);
     return new EmbedBuilder()
-      .setColor(status.startsWith('Mine') ? 0xe34b4b : status ? 0x36c275 : 0x8d7548)
+      .setColor(
+        status.startsWith('Mine')
+          ? 0xe34b4b
+          : status.startsWith('Round timed out')
+            ? 0xffc247
+            : status
+              ? 0x36c275
+              : 0x8d7548,
+      )
       .setTitle('💎 Mines')
       .setDescription(
         `Bet: **${game.bet} points** · Mines: **${game.minesCount}**\nSafe tiles: **${game.revealed.size}** · Cash-out: **${payout} points** (${multiplier.toFixed(2)}×)${status ? `\n\n${status}` : '\n\nChoose another tile or cash out.'}\n\n*Virtual points only; no purchase, transfer, or cash-out.*`,
@@ -725,11 +742,74 @@ export function installActivity(client, db) {
     });
   }
 
+  function scheduleGameTimeout(id, game, kind, delay = gameTimeoutMs) {
+    clearGameTimeout(id);
+    const timeout = setTimeout(async () => {
+      gameTimeouts.delete(id);
+      const activeGames = kind === 'blackjack' ? blackjacks : minesGames;
+      if (!activeGames.has(id)) return;
+      if (game.busy) {
+        scheduleGameTimeout(id, game, kind, 1000);
+        return;
+      }
+
+      game.busy = true;
+      const balance = settleBet(id, game.bet);
+      activeGames.delete(id);
+      if (balance === null) return;
+
+      try {
+        const channel = await client.channels.fetch(game.channelId).catch(() => null);
+        const message = channel
+          ? await channel.messages.fetch(game.messageId).catch(() => null)
+          : null;
+        if (!message) return;
+        if (kind === 'blackjack') {
+          await message.edit({
+            ...(await blackjackMessage(
+              game,
+              true,
+              `Round timed out after 5 minutes. Your bet was returned. Balance: **${balance} points**.`,
+            )),
+            components: [],
+            allowedMentions: { parse: [] },
+          });
+          return;
+        }
+        await updateMinesBoard(
+          message,
+          game,
+          id,
+          `Round timed out after 5 minutes. Your bet was returned. Balance: **${balance} points**.`,
+          true,
+        );
+      } catch (error) {
+        console.error(`Unable to update timed-out ${kind} game ${id}.`, error);
+      }
+    }, delay);
+    timeout.unref();
+    gameTimeouts.set(id, timeout);
+  }
+
   async function finishBlackjack(interaction, id, game, result, payout) {
+    if (!interaction.deferred && !interaction.replied) {
+      if (interaction.isButton()) await interaction.deferUpdate();
+      else await interaction.deferReply();
+    }
     const balance = settleBet(id, payout);
     blackjacks.delete(id);
-    return interaction.update({
-      ...(await blackjackMessage(game, true, `${result}\nBalance: **${balance} points**`)),
+    let payload;
+    try {
+      payload = await blackjackMessage(game, true, `${result}\nBalance: **${balance} points**`);
+    } catch (error) {
+      console.error('Blackjack result animation failed.', error);
+      payload = {
+        embeds: [renderBlackjack(game, true, `${result}\nBalance: **${balance} points**`)],
+        files: [],
+      };
+    }
+    return interaction.editReply({
+      ...payload,
       components: [],
       allowedMentions: { parse: [] },
     });
@@ -911,21 +991,39 @@ export function installActivity(client, db) {
           'Dealer has blackjack. Your bet is lost.',
           0,
         );
-      return interaction.reply({
-        ...(await blackjackMessage(game)),
-        components: [
-          new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setCustomId(`bj:${reservation.id}:hit`)
-              .setLabel('Hit')
-              .setStyle(ButtonStyle.Success),
-            new ButtonBuilder()
-              .setCustomId(`bj:${reservation.id}:stand`)
-              .setLabel('Stand')
-              .setStyle(ButtonStyle.Danger),
-          ),
-        ],
-      });
+      await interaction.deferReply();
+      try {
+        await interaction.editReply({
+          ...(await blackjackMessage(game)),
+          components: [
+            new ActionRowBuilder().addComponents(
+              new ButtonBuilder()
+                .setCustomId(`bj:${reservation.id}:hit`)
+                .setLabel('Hit')
+                .setStyle(ButtonStyle.Success),
+              new ButtonBuilder()
+                .setCustomId(`bj:${reservation.id}:stand`)
+                .setLabel('Stand')
+                .setStyle(ButtonStyle.Danger),
+            ),
+          ],
+        });
+        const gameMessage = await interaction.fetchReply();
+        game.channelId = gameMessage.channelId;
+        game.messageId = gameMessage.id;
+        scheduleGameTimeout(reservation.id, game, 'blackjack');
+      } catch (error) {
+        blackjacks.delete(reservation.id);
+        settleBet(reservation.id, bet);
+        console.error('Blackjack could not be opened; the bet was refunded.', error);
+        return interaction.editReply({
+          content: 'The hand could not be opened, so your bet was returned.',
+          embeds: [],
+          files: [],
+          components: [],
+        });
+      }
+      return;
     }
 
     if (interaction.commandName === 'mines') {
@@ -981,6 +1079,7 @@ export function installActivity(client, db) {
       });
       game.channelId = boardMessage.channelId;
       game.messageId = boardMessage.id;
+      scheduleGameTimeout(reservation.id, game, 'mines');
       return interaction.followUp({
         content: 'Cash out whenever you want:',
         components: [
@@ -1159,15 +1258,37 @@ export function installActivity(client, db) {
           content: 'This hand belongs to another player.',
           flags: MessageFlags.Ephemeral,
         });
+      if (game.busy)
+        return interaction.reply({
+          content: 'Your hand is updating—try again in a moment.',
+          flags: MessageFlags.Ephemeral,
+        });
+      game.busy = true;
       game.lastPlayer = interaction.user.id;
+      await interaction.deferUpdate();
       if (action === 'hit') {
         game.player.push(game.deck.pop());
         if (handValue(game.player) > 21)
           return finishBlackjack(interaction, id, game, 'Bust — your bet is lost.', 0);
-        return interaction.update({
-          ...(await blackjackMessage(game)),
-          components: interaction.message.components,
-        });
+        try {
+          const payload = await blackjackMessage(game);
+          const updated = await interaction.editReply({
+            ...payload,
+            components: interaction.message.components,
+          });
+          game.busy = false;
+          return updated;
+        } catch (error) {
+          game.busy = false;
+          console.error('Blackjack hand animation update failed.', error);
+          return interaction.editReply({
+            embeds: [
+              renderBlackjack(game, false, 'Animation unavailable; your hand is still active.'),
+            ],
+            components: interaction.message.components,
+            files: [],
+          });
+        }
       }
       while (handValue(game.dealer) < 17) game.dealer.push(game.deck.pop());
       const playerTotal = handValue(game.player);
