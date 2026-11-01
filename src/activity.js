@@ -114,7 +114,7 @@ async function createCoinGif(result) {
   const renderWidth = 720;
   const renderHeight = 520;
   const centerX = width / 2;
-  const radius = 56;
+  const radius = 66;
   const frames = [];
   const frameCount = 24;
   const finalAngle = result === 'heads' ? Math.PI * 8 : Math.PI * 9;
@@ -143,25 +143,35 @@ async function createCoinGif(result) {
     const liftGlow = Math.sin(Math.PI * flight);
     const shadowWidth = 30 + 22 * liftGlow;
     const shadowOpacity = 0.48 - 0.24 * liftGlow;
-    const edgeRidges = Array.from({ length: 9 }, (_, index) => {
-      const x = -40 + index * 10;
+    const edgeRidges = Array.from({ length: 15 }, (_, index) => {
+      const x = -49 + index * 7;
       return `M ${x} -5 v 10`;
     }).join('');
+    const faceEngraving = Array.from(
+      { length: 32 },
+      (_, index) => `<path d="M 0 -49 v 4" transform="rotate(${index * 11.25})"/>`,
+    ).join('');
     const coin = `
       <g transform="translate(${centerX} ${landedY})">
         <ellipse cx="0" cy="${sideOffset + 2}" rx="${radius + 3}" ry="${radius * faceScale + 11}" fill="#44260d"/>
         <ellipse cx="0" cy="${sideOffset}" rx="${radius + 2}" ry="${radius * faceScale + 9}" fill="url(#edge3d)" stroke="#ffe8a0" stroke-width="2"/>
         <path d="${edgeRidges}" stroke="#774711" stroke-width="2" opacity="${(0.16 + 0.68 * (1 - faceScale)).toFixed(2)}"/>
         <g transform="translate(0 ${-sideOffset * 0.4}) scale(1 ${faceScale})">
-          <circle r="${radius + 1}" fill="#6a400f" stroke="#fff0b4" stroke-width="2.5"/>
+          <circle r="${radius + 1}" fill="#593508" stroke="#fff0b4" stroke-width="2.5"/>
           <circle r="${radius - 3}" fill="url(#gold)" stroke="url(#rim)" stroke-width="4"/>
-          <circle r="${radius - 10}" fill="none" stroke="#855315" stroke-width="2"/>
-          <circle r="${radius - 15}" fill="none" stroke="#fff0b4" stroke-width="1.2"/>
-          <circle r="${radius - 20}" fill="none" stroke="#a66e1c" stroke-width="1" stroke-dasharray="2 3"/>
-          <path d="M -34 -30 Q 0 -48 34 -30 M -34 30 Q 0 48 34 30" fill="none" stroke="#fff1bd" stroke-width="1.2" opacity=".75"/>
-          <text x="0" y="-24" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="800" letter-spacing="2.4" fill="#70440f">${face}</text>
-          <image x="-18" y="-16" width="36" height="36" href="data:image/png;base64,${logoData}" opacity=".2" preserveAspectRatio="xMidYMid meet"/>
-          <text x="0" y="38" text-anchor="middle" font-family="Arial,sans-serif" font-size="6.5" font-weight="800" letter-spacing="1.8" fill="#70440f">CHRISP · 50 / 50</text>
+          <circle r="${radius - 9}" fill="url(#coinFace)" stroke="#855315" stroke-width="2.2"/>
+          <circle r="${radius - 14}" fill="url(#metalGrain)" opacity=".36"/>
+          <circle r="${radius - 18}" fill="none" stroke="#fff1bd" stroke-width="1.4" opacity=".82"/>
+          <circle r="${radius - 23}" fill="none" stroke="#a66e1c" stroke-width="1.2" stroke-dasharray="1.5 2" opacity=".9"/>
+          <circle r="${radius - 28}" fill="none" stroke="#fff0b4" stroke-width="1" opacity=".65"/>
+          <path d="${faceEngraving}" fill="none" stroke="#603a12" stroke-width="1.2" opacity=".8"/>
+          <path d="M -38 -18 Q -20 -47 0 -44 Q 20 -47 38 -18 M -38 18 Q -20 47 0 44 Q 20 47 38 18" fill="none" stroke="#fff4cf" stroke-width="1.1" opacity=".8"/>
+          <path d="M -31 -23 C -15 -40 15 -40 31 -23 C 15 -7 -15 -7 -31 -23 M -31 23 C -15 7 15 7 31 23 C 15 40 -15 40 -31 23" fill="none" stroke="#8b5719" stroke-width="1" opacity=".65"/>
+          <text x="0" y="-25" text-anchor="middle" font-family="Arial,sans-serif" font-size="8.5" font-weight="800" letter-spacing="2" fill="#70440f">${face}</text>
+          <image x="-22" y="-15" width="44" height="36" href="data:image/png;base64,${logoData}" opacity=".18" preserveAspectRatio="xMidYMid meet"/>
+          <text x="0" y="35" text-anchor="middle" font-family="Arial,sans-serif" font-size="6" font-weight="800" letter-spacing="1.5" fill="#70440f">CHRISP · 50 / 50</text>
+          <path d="M 0 -10 l 2.1 5.8 6.1 .2 -4.8 3.6 1.8 5.8 -5.1 -3.4 -5.1 3.4 1.8 -5.8 -4.8 -3.6 6.1 -.2 Z" transform="translate(-38 0) scale(.23)" fill="#fff1bd" opacity=".8"/>
+          <path d="M 0 -10 l 2.1 5.8 6.1 .2 -4.8 3.6 1.8 5.8 -5.1 -3.4 -5.1 3.4 1.8 -5.8 -4.8 -3.6 6.1 -.2 Z" transform="translate(38 0) scale(.23)" fill="#fff1bd" opacity=".8"/>
           <circle cx="0" cy="-${radius - 8}" r="2.2" fill="#fff7d7"/>
           <circle cx="0" cy="${radius - 8}" r="2.2" fill="#fff7d7"/>
         </g>
@@ -173,6 +183,8 @@ async function createCoinGif(result) {
           <radialGradient id="backdrop" cx="50%" cy="42%" r="78%"><stop offset="0" stop-color="#492832"/><stop offset=".58" stop-color="#26151f"/><stop offset="1" stop-color="#100d16"/></radialGradient>
           <radialGradient id="halo"><stop offset="0" stop-color="#ffca62" stop-opacity=".28"/><stop offset="1" stop-color="#ffca62" stop-opacity="0"/></radialGradient>
           <radialGradient id="gold" cx="32%" cy="26%" r="78%"><stop offset="0" stop-color="#fffbe0"/><stop offset=".14" stop-color="#f8e6a2"/><stop offset=".34" stop-color="#d69b36"/><stop offset=".58" stop-color="#f4ce68"/><stop offset=".79" stop-color="#ad6b17"/><stop offset="1" stop-color="#f3d477"/></radialGradient>
+          <radialGradient id="coinFace" cx="34%" cy="24%" r="82%"><stop offset="0" stop-color="#fff7cf"/><stop offset=".26" stop-color="#e7bc5d"/><stop offset=".62" stop-color="#b67924"/><stop offset=".83" stop-color="#f0ca70"/><stop offset="1" stop-color="#855015"/></radialGradient>
+          <pattern id="metalGrain" width="6" height="6" patternUnits="userSpaceOnUse"><path d="M 0 1 H 3 M 4 4 H 6 M 1 5 H 2" stroke="#fff2c4" stroke-width=".55" opacity=".55"/><circle cx="5" cy="1" r=".45" fill="#754711" opacity=".7"/><circle cx="2" cy="3" r=".35" fill="#754711" opacity=".5"/></pattern>
           <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0b6"/><stop offset=".3" stop-color="#a66c1c"/><stop offset=".62" stop-color="#ffe6a0"/><stop offset="1" stop-color="#8a5717"/></linearGradient>
           <linearGradient id="edge3d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff4c9"/><stop offset=".18" stop-color="#805017"/><stop offset=".4" stop-color="#f4ce71"/><stop offset=".62" stop-color="#7d4b12"/><stop offset=".82" stop-color="#ffe8a5"/><stop offset="1" stop-color="#734610"/></linearGradient>
           <linearGradient id="skin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f2c29a"/><stop offset=".48" stop-color="#d99572"/><stop offset="1" stop-color="#9d5e4d"/></linearGradient>
