@@ -36,24 +36,25 @@ const rouletteNumbers = [
 ];
 
 async function createRouletteGif(result) {
-  const size = 360;
+  const size = 440;
   const center = size / 2;
   const step = 360 / rouletteNumbers.length;
   const resultIndex = rouletteNumbers.indexOf(result);
   const finalRotation = -resultIndex * step;
   const frames = [];
-  const frameCount = 18;
+  const frameCount = 40;
 
   for (let frame = 0; frame < frameCount; frame++) {
     const progress = frame / (frameCount - 1);
     const eased = 1 - (1 - progress) ** 3;
-    const rotation = finalRotation - 6 * 360 * (1 - eased);
+    const rotation = finalRotation - 8 * 360 * (1 - eased);
+    const ballRotation = finalRotation - 10 * 360 * (1 - eased);
     const slots = rouletteNumbers
       .map((number, index) => {
         const start = (-90 + index * step - step / 2) * (Math.PI / 180);
         const end = start + step * (Math.PI / 180);
-        const outer = 160;
-        const inner = 112;
+        const outer = 190;
+        const inner = 132;
         const point = (radius, angle) => [
           center + radius * Math.cos(angle),
           center + radius * Math.sin(angle),
@@ -64,15 +65,15 @@ async function createRouletteGif(result) {
         const [x4, y4] = point(inner, start);
         const fill = number === 0 ? '#16834d' : redNumbers.has(number) ? '#b82d36' : '#25272d';
         const labelAngle = -90 + index * step;
-        return `<path d="M ${x1} ${y1} A ${outer} ${outer} 0 0 1 ${x2} ${y2} L ${x3} ${y3} A ${inner} ${inner} 0 0 0 ${x4} ${y4} Z" fill="${fill}" stroke="#d2aa53" stroke-width="1"/><text x="${center}" y="${center - 135}" transform="rotate(${labelAngle} ${center} ${center})" fill="white" font-size="10" font-weight="700" text-anchor="middle" dominant-baseline="middle">${number}</text>`;
+        return `<path d="M ${x1} ${y1} A ${outer} ${outer} 0 0 1 ${x2} ${y2} L ${x3} ${y3} A ${inner} ${inner} 0 0 0 ${x4} ${y4} Z" fill="${fill}" stroke="#d2aa53" stroke-width="1.5"/><text x="${center}" y="${center - 160}" transform="rotate(${labelAngle} ${center} ${center})" fill="white" font-size="11" font-weight="700" text-anchor="middle" dominant-baseline="middle">${number}</text>`;
       })
       .join('');
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><rect width="100%" height="100%" rx="22" fill="#171316"/><circle cx="${center}" cy="${center}" r="168" fill="#6f5522" stroke="#d6b55f" stroke-width="5"/><g transform="rotate(${rotation} ${center} ${center})">${slots}<circle cx="${center}" cy="${center}" r="111" fill="#075c38" stroke="#d5b859" stroke-width="3"/><text x="${center}" y="${center + 8}" fill="#67d48d" font-family="Arial,sans-serif" font-size="44" font-weight="800" text-anchor="middle">C</text></g><path d="M ${center - 13} 7 L ${center + 13} 7 L ${center} 35 Z" fill="#f5e6ae" stroke="#59451e" stroke-width="2"/><circle cx="${center}" cy="${center}" r="11" fill="#e9d184" stroke="#fff0bc" stroke-width="3"/></svg>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}"><defs><radialGradient id="felt"><stop offset="0" stop-color="#127548"/><stop offset="1" stop-color="#064327"/></radialGradient><linearGradient id="rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe59a"/><stop offset=".5" stop-color="#856021"/><stop offset="1" stop-color="#f3d378"/></linearGradient></defs><rect width="100%" height="100%" rx="24" fill="#171316"/><circle cx="${center}" cy="${center}" r="211" fill="url(#rim)" stroke="#f6df9a" stroke-width="3"/><circle cx="${center}" cy="${center}" r="198" fill="#674b1a" stroke="#a5833e" stroke-width="2"/><g transform="rotate(${rotation} ${center} ${center})">${slots}<circle cx="${center}" cy="${center}" r="130" fill="url(#felt)" stroke="#e0c16a" stroke-width="4"/><circle cx="${center}" cy="${center}" r="117" fill="none" stroke="#72c78a" stroke-opacity=".35" stroke-width="2"/><text x="${center}" y="${center + 12}" fill="#69d58e" font-family="Arial,sans-serif" font-size="52" font-weight="800" text-anchor="middle">C</text></g><g transform="rotate(${ballRotation} ${center} ${center})"><circle cx="${center}" cy="${center - 202}" r="8" fill="#fff8da" stroke="#70521e" stroke-width="3"/><circle cx="${center}" cy="${center - 202}" r="3" fill="white"/></g><path d="M ${center - 15} 6 L ${center + 15} 6 L ${center} 40 Z" fill="#fff1bd" stroke="#59451e" stroke-width="2"/><circle cx="${center}" cy="${center}" r="12" fill="#e9d184" stroke="#fff0bc" stroke-width="3"/></svg>`;
     frames.push(await sharp(Buffer.from(svg)).png().toBuffer());
   }
 
   return sharp(frames, { join: { animated: true } })
-    .gif({ loop: 1, delay: frames.map((_, index) => (index > 12 ? 140 : 70)), effort: 5 })
+    .gif({ loop: 1, delay: frames.map((_, index) => (index > 29 ? 105 : 55)), effort: 5 })
     .toBuffer();
 }
 
@@ -661,8 +662,20 @@ export function installActivity(client, db) {
           content: 'The wheel could not be rendered, so your bet was refunded.',
         });
       }
+      const spinEmbed = new EmbedBuilder()
+        .setColor(0x8d7548)
+        .setTitle('🎡 Roulette is spinning…')
+        .setDescription(
+          `Bet: **${bet} points** on ${colorEmoji(target)} **${target}**\n*Virtual points only; no cash value.*`,
+        )
+        .setImage('attachment://roulette-spin.gif');
+      await interaction.editReply({
+        embeds: [spinEmbed],
+        files: [new AttachmentBuilder(animation, { name: 'roulette-spin.gif' })],
+      });
+      await new Promise((resolve) => setTimeout(resolve, 2850));
       const balance = settleBet(reservation.id, payout);
-      const embed = new EmbedBuilder()
+      const resultEmbed = new EmbedBuilder()
         .setColor(won ? 0x36c275 : 0xe34b4b)
         .setTitle(`${colorEmoji(landed)} Roulette — ${result} ${landed.toUpperCase()}`)
         .setDescription(
@@ -670,12 +683,8 @@ export function installActivity(client, db) {
         )
         .setFooter({
           text: 'European wheel: 18 red, 18 black, 1 green • result drawn fairly with a secure random source',
-        })
-        .setImage('attachment://roulette-spin.gif');
-      return interaction.editReply({
-        embeds: [embed],
-        files: [new AttachmentBuilder(animation, { name: 'roulette-spin.gif' })],
-      });
+        });
+      return interaction.followUp({ embeds: [resultEmbed], allowedMentions: { parse: [] } });
     }
   });
 
