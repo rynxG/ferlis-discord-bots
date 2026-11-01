@@ -6,6 +6,7 @@ import {
   EmbedBuilder,
   Events,
   MessageFlags,
+  PermissionFlagsBits,
   SlashCommandBuilder,
 } from 'discord.js';
 import { randomInt } from 'node:crypto';
@@ -16,7 +17,8 @@ const day = 24 * 60 * 60 * 1000;
 const today = () => new Date().toISOString().slice(0, 10);
 const yesterday = () => new Date(Date.now() - day).toISOString().slice(0, 10);
 const maxBet = 100;
-const hourlyGambleLimit = 15;
+const standardHourlyGambleLimit = 15;
+const privilegedHourlyGambleLimit = 40;
 const hour = 60 * 60 * 1000;
 const redNumbers = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
 const rouletteColor = (number) =>
@@ -477,7 +479,19 @@ export function installActivity(client, db) {
   const blackjacks = new Map();
   const minesGames = new Map();
 
-  function recordGamble(user) {
+  function gambleLimitFor(interaction) {
+    const isAdmin = interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
+    const member = interaction.member;
+    const hasChrispPlus =
+      member?.roles?.cache?.some((role) => role.name.trim().toLowerCase() === 'chrisp+') ||
+      (Array.isArray(member?.roles) &&
+        interaction.guild?.roles.cache.some(
+          (role) => role.name.trim().toLowerCase() === 'chrisp+' && member.roles.includes(role.id),
+        ));
+    return isAdmin || hasChrispPlus ? privilegedHourlyGambleLimit : standardHourlyGambleLimit;
+  }
+
+  function recordGamble(user, limit) {
     const cutoff = Date.now() - hour;
     db.exec('BEGIN IMMEDIATE');
     try {
@@ -485,7 +499,7 @@ export function installActivity(client, db) {
       const used = db
         .prepare('SELECT COUNT(*) AS count FROM activity_gamble_uses WHERE user=? AND created>?')
         .get(user, cutoff).count;
-      if (used >= hourlyGambleLimit) {
+      if (used >= limit) {
         db.exec('COMMIT');
         return false;
       }
@@ -499,6 +513,10 @@ export function installActivity(client, db) {
       db.exec('ROLLBACK');
       throw error;
     }
+  }
+
+  function gambleLimitMessage(limit, betReturned = false) {
+    return `You’ve reached the limit of **${limit} gambles per hour**.${betReturned ? ' Your bet was returned.' : ' Try again later.'}`;
   }
 
   function reserveBet(user, bet, kind) {
@@ -718,9 +736,10 @@ export function installActivity(client, db) {
 
     if (interaction.commandName === 'coinflip') {
       ensureUser.run(interaction.user.id);
-      if (!recordGamble(interaction.user.id)) {
+      const gambleLimit = gambleLimitFor(interaction);
+      if (!recordGamble(interaction.user.id, gambleLimit)) {
         return interaction.reply({
-          content: 'You’ve reached the limit of **15 gambles per hour**. Try again later.',
+          content: gambleLimitMessage(gambleLimit),
         });
       }
       const guess = interaction.options.getString('guess', true);
@@ -817,10 +836,11 @@ export function installActivity(client, db) {
       const reservation = reserveBet(interaction.user.id, bet, 'blackjack');
       if (reservation.error)
         return interaction.reply({ content: reservation.error, flags: MessageFlags.Ephemeral });
-      if (!recordGamble(interaction.user.id)) {
+      const gambleLimit = gambleLimitFor(interaction);
+      if (!recordGamble(interaction.user.id, gambleLimit)) {
         settleBet(reservation.id, bet);
         return interaction.reply({
-          content: 'You’ve reached the limit of **15 gambles per hour**. Your bet was returned.',
+          content: gambleLimitMessage(gambleLimit, true),
         });
       }
       const deck = makeDeck();
@@ -883,10 +903,11 @@ export function installActivity(client, db) {
       const reservation = reserveBet(interaction.user.id, bet, 'mines');
       if (reservation.error)
         return interaction.reply({ content: reservation.error, flags: MessageFlags.Ephemeral });
-      if (!recordGamble(interaction.user.id)) {
+      const gambleLimit = gambleLimitFor(interaction);
+      if (!recordGamble(interaction.user.id, gambleLimit)) {
         settleBet(reservation.id, bet);
         return interaction.reply({
-          content: 'You’ve reached the limit of **15 gambles per hour**. Your bet was returned.',
+          content: gambleLimitMessage(gambleLimit, true),
         });
       }
 
@@ -949,10 +970,11 @@ export function installActivity(client, db) {
       const reservation = reserveBet(interaction.user.id, bet, 'roulette');
       if (reservation.error)
         return interaction.reply({ content: reservation.error, flags: MessageFlags.Ephemeral });
-      if (!recordGamble(interaction.user.id)) {
+      const gambleLimit = gambleLimitFor(interaction);
+      if (!recordGamble(interaction.user.id, gambleLimit)) {
         settleBet(reservation.id, bet);
         return interaction.reply({
-          content: 'You’ve reached the limit of **15 gambles per hour**. Your bet was returned.',
+          content: gambleLimitMessage(gambleLimit, true),
         });
       }
       const result = randomInt(37);
