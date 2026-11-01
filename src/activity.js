@@ -9,6 +9,7 @@ import {
   SlashCommandBuilder,
 } from 'discord.js';
 import { randomInt } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import sharp from 'sharp';
 
 const day = 24 * 60 * 60 * 1000;
@@ -100,10 +101,17 @@ async function createCoinGif(result) {
   const renderWidth = 1080;
   const renderHeight = 780;
   const centerX = width / 2;
-  const radius = 76;
+  const radius = 56;
   const frames = [];
   const frameCount = 36;
   const finalAngle = result === 'heads' ? Math.PI * 8 : Math.PI * 9;
+  const logoBuffer = await sharp(
+    await readFile(new URL('../assets/chrisp-logo-white.png', import.meta.url)),
+  )
+    .resize(36, 36, { fit: 'inside' })
+    .png()
+    .toBuffer();
+  const logoData = logoBuffer.toString('base64');
 
   for (let frame = 0; frame < frameCount; frame++) {
     const progress = frame / (frameCount - 1);
@@ -112,22 +120,62 @@ async function createCoinGif(result) {
     const easedSpin = 1 - (1 - spin) ** 3;
     const angle = finalAngle * easedSpin;
     const face = Math.cos(angle) >= 0 ? 'HEADS' : 'TAILS';
-    const scaleY = Math.max(0.055, Math.abs(Math.cos(angle)));
-    const centerY = 166 - 78 * Math.sin(Math.PI * flight);
-    const centerCoinX = 145 + 35 * (1 - Math.exp(-progress * 5));
+    const faceScale = Math.max(0.035, Math.abs(Math.cos(angle)));
+    const coinY = 158 - 36 * Math.sin(Math.PI * flight);
+    const sideOffset = Math.sin(angle) * 7;
     const handOpacity = Math.max(0, 1 - progress / 0.15);
     const impact = progress > 0.84 ? (progress - 0.84) / 0.16 : 0;
-    const bounce = progress > 0.84 ? Math.sin(impact * Math.PI * 2) * 5 * (1 - impact) : 0;
-    const landedY = centerY - bounce;
-    const shadowWidth = 42 + 32 * Math.sin(Math.PI * flight);
-    const shadowOpacity = 0.48 - 0.25 * Math.sin(Math.PI * flight);
-    const coin =
-      scaleY < 0.16
-        ? `<g transform="translate(${centerCoinX} ${landedY})"><rect x="-${radius}" y="-9" width="${radius * 2}" height="18" rx="8" fill="url(#edge)" stroke="#fff0b4" stroke-width="2"/><path d="${Array.from({ length: 13 }, (_, i) => `M ${-radius + 9 + i * 11} -7 v 14`).join(' ')}" stroke="#875416" stroke-width="2" opacity=".9"/><path d="M -62 -4 h124 M -62 3 h124" stroke="#fff0b4" stroke-width="1" opacity=".65"/></g>`
-        : `<g transform="translate(${centerCoinX} ${landedY}) scale(1 ${scaleY})"><circle r="${radius + 8}" fill="#56340e" stroke="#f8e6a8" stroke-width="3"/><circle r="${radius + 3}" fill="url(#rim)" stroke="#8b5d16" stroke-width="3"/><circle r="${radius - 4}" fill="url(#gold)" stroke="#fff0b4" stroke-width="2"/><circle r="${radius - 12}" fill="none" stroke="#875414" stroke-width="2.2"/><circle r="${radius - 17}" fill="none" stroke="#fff0b4" stroke-width="1.3"/><circle r="${radius - 23}" fill="none" stroke="#a66e1c" stroke-width="1" stroke-dasharray="2 3"/><path d="M -43 -38 Q 0 -63 43 -38 M -43 38 Q 0 63 43 38" fill="none" stroke="#fff1bd" stroke-width="1.2" opacity=".8"/><text x="0" y="-25" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="800" letter-spacing="2.5" fill="#70440f">${face}</text><text x="0" y="18" text-anchor="middle" dominant-baseline="middle" font-family="Georgia,serif" font-size="52" font-weight="800" fill="url(#engraving)" stroke="#f9df91" stroke-width="1.3" paint-order="stroke">${face === 'HEADS' ? 'H' : 'T'}</text><text x="0" y="49" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="800" letter-spacing="2" fill="#70440f">CHRISP • 50 / 50</text><circle cx="0" cy="-${radius - 10}" r="2.5" fill="#fff7d7"/><circle cx="0" cy="${radius - 10}" r="2.5" fill="#fff7d7"/></g>`;
-    const hand = `<g opacity="${handOpacity.toFixed(2)}"><path d="M 0 229 C 22 219 45 198 70 176 C 88 161 101 151 113 151 C 123 151 128 160 122 168 C 108 184 91 198 77 212 C 62 225 42 239 20 247 Z" fill="url(#skin)" stroke="#d7a789" stroke-width="2"/><path d="M 0 253 C 27 245 49 229 71 216 C 88 206 103 199 112 202 C 121 206 121 215 112 222 C 92 238 69 251 46 260 H 0 Z" fill="url(#skinLight)" stroke="#edc0a0" stroke-width="2"/><path d="M 17 228 C 48 214 71 188 98 170 M 15 250 C 43 239 65 221 89 210" fill="none" stroke="#f7d1ad" stroke-width="2" opacity=".7"/><path d="M 94 169 Q 106 161 115 161 M 89 212 Q 101 206 110 207" fill="none" stroke="#8c5140" stroke-width="1.5" opacity=".7"/></g>`;
+    const bounce = progress > 0.84 ? Math.sin(impact * Math.PI * 2) * 4 * (1 - impact) : 0;
+    const landedY = coinY - bounce;
     const liftGlow = Math.sin(Math.PI * flight);
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${renderWidth}" height="${renderHeight}" viewBox="0 0 ${width} ${height}"><defs><radialGradient id="backdrop" cx="50%" cy="42%" r="78%"><stop offset="0" stop-color="#492832"/><stop offset=".58" stop-color="#26151f"/><stop offset="1" stop-color="#100d16"/></radialGradient><radialGradient id="halo"><stop offset="0" stop-color="#ffca62" stop-opacity=".28"/><stop offset="1" stop-color="#ffca62" stop-opacity="0"/></radialGradient><radialGradient id="gold" cx="32%" cy="26%" r="78%"><stop offset="0" stop-color="#fffbe0"/><stop offset=".14" stop-color="#f8e6a2"/><stop offset=".34" stop-color="#d69b36"/><stop offset=".58" stop-color="#f4ce68"/><stop offset=".79" stop-color="#ad6b17"/><stop offset="1" stop-color="#f3d477"/></radialGradient><linearGradient id="rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0b6"/><stop offset=".3" stop-color="#a66c1c"/><stop offset=".62" stop-color="#ffe6a0"/><stop offset="1" stop-color="#8a5717"/></linearGradient><linearGradient id="edge" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff2c2"/><stop offset=".25" stop-color="#b87c27"/><stop offset=".5" stop-color="#ffe7a0"/><stop offset=".76" stop-color="#8a5717"/><stop offset="1" stop-color="#f8df99"/></linearGradient><linearGradient id="engraving" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#87551a"/><stop offset=".5" stop-color="#f3d982"/><stop offset="1" stop-color="#765018"/></linearGradient><linearGradient id="skin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f2c29a"/><stop offset=".48" stop-color="#d99572"/><stop offset="1" stop-color="#9d5e4d"/></linearGradient><linearGradient id="skinLight" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f5c8a5"/><stop offset=".55" stop-color="#dc9d7d"/><stop offset="1" stop-color="#aa6955"/></linearGradient></defs><rect width="100%" height="100%" rx="22" fill="url(#backdrop)"/><rect x="7" y="7" width="346" height="246" rx="18" fill="none" stroke="#785469" stroke-width="1.5"/><ellipse cx="180" cy="119" rx="130" ry="115" fill="url(#halo)" opacity="${liftGlow.toFixed(2)}"/><text x="180" y="31" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="800" letter-spacing="4" fill="#f5dfba">COIN FLIP</text><text x="180" y="49" text-anchor="middle" font-family="Arial,sans-serif" font-size="8" font-weight="600" letter-spacing="2" fill="#ba9baa">FAIR 50 / 50</text><ellipse cx="${centerCoinX + 3}" cy="224" rx="${shadowWidth}" ry="9" fill="#08060b" opacity="${shadowOpacity.toFixed(2)}"/><ellipse cx="${centerCoinX}" cy="221" rx="${shadowWidth * 0.72}" ry="3" fill="#d7a54b" opacity="${(0.13 - 0.08 * liftGlow).toFixed(2)}"/>${hand}${coin}<path d="M ${centerCoinX + radius * 0.68} ${landedY - radius * 0.35} q 15 -10 22 -21" fill="none" stroke="#ffe3a0" stroke-opacity="${(0.08 + 0.28 * liftGlow).toFixed(2)}" stroke-width="2"/><text x="180" y="246" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="600" letter-spacing="2" fill="#aa8798">THUMB-FLICK TOSS · SECURE RANDOM RESULT</text></svg>`;
+    const shadowWidth = 30 + 22 * liftGlow;
+    const shadowOpacity = 0.48 - 0.24 * liftGlow;
+    const edgeRidges = Array.from({ length: 9 }, (_, index) => {
+      const x = -40 + index * 10;
+      return `<path d="M ${x} -5 v 10"/>`;
+    }).join('');
+    const coin = `
+      <g transform="translate(${centerX} ${landedY})">
+        <ellipse cx="0" cy="${sideOffset + 2}" rx="${radius + 3}" ry="${radius * faceScale + 11}" fill="#44260d"/>
+        <ellipse cx="0" cy="${sideOffset}" rx="${radius + 2}" ry="${radius * faceScale + 9}" fill="url(#edge3d)" stroke="#ffe8a0" stroke-width="2"/>
+        <path d="${edgeRidges}" stroke="#774711" stroke-width="2" opacity="${(0.16 + 0.68 * (1 - faceScale)).toFixed(2)}"/>
+        <g transform="translate(0 ${-sideOffset * 0.4}) scale(1 ${faceScale})">
+          <circle r="${radius + 1}" fill="#6a400f" stroke="#fff0b4" stroke-width="2.5"/>
+          <circle r="${radius - 3}" fill="url(#gold)" stroke="url(#rim)" stroke-width="4"/>
+          <circle r="${radius - 10}" fill="none" stroke="#855315" stroke-width="2"/>
+          <circle r="${radius - 15}" fill="none" stroke="#fff0b4" stroke-width="1.2"/>
+          <circle r="${radius - 20}" fill="none" stroke="#a66e1c" stroke-width="1" stroke-dasharray="2 3"/>
+          <path d="M -34 -30 Q 0 -48 34 -30 M -34 30 Q 0 48 34 30" fill="none" stroke="#fff1bd" stroke-width="1.2" opacity=".75"/>
+          <text x="0" y="-24" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="800" letter-spacing="2.4" fill="#70440f">${face}</text>
+          <image x="-18" y="-16" width="36" height="36" href="data:image/png;base64,${logoData}" opacity=".2" preserveAspectRatio="xMidYMid meet"/>
+          <text x="0" y="38" text-anchor="middle" font-family="Arial,sans-serif" font-size="6.5" font-weight="800" letter-spacing="1.8" fill="#70440f">CHRISP · 50 / 50</text>
+          <circle cx="0" cy="-${radius - 8}" r="2.2" fill="#fff7d7"/>
+          <circle cx="0" cy="${radius - 8}" r="2.2" fill="#fff7d7"/>
+        </g>
+      </g>`;
+    const hand = `<g opacity="${handOpacity.toFixed(2)}"><path d="M 0 229 C 22 219 45 198 70 176 C 88 161 101 151 113 151 C 123 151 128 160 122 168 C 108 184 91 198 77 212 C 62 225 42 239 20 247 Z" fill="url(#skin)" stroke="#d7a789" stroke-width="2"/><path d="M 0 253 C 27 245 49 229 71 216 C 88 206 103 199 112 202 C 121 206 121 215 112 222 C 92 238 69 251 46 260 H 0 Z" fill="url(#skinLight)" stroke="#edc0a0" stroke-width="2"/><path d="M 17 228 C 48 214 71 188 98 170 M 15 250 C 43 239 65 221 89 210" fill="none" stroke="#f7d1ad" stroke-width="2" opacity=".7"/><path d="M 94 169 Q 106 161 115 161 M 89 212 Q 101 206 110 207" fill="none" stroke="#8c5140" stroke-width="1.5" opacity=".7"/></g>`;
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${renderWidth}" height="${renderHeight}" viewBox="0 0 ${width} ${height}">
+        <defs>
+          <radialGradient id="backdrop" cx="50%" cy="42%" r="78%"><stop offset="0" stop-color="#492832"/><stop offset=".58" stop-color="#26151f"/><stop offset="1" stop-color="#100d16"/></radialGradient>
+          <radialGradient id="halo"><stop offset="0" stop-color="#ffca62" stop-opacity=".28"/><stop offset="1" stop-color="#ffca62" stop-opacity="0"/></radialGradient>
+          <radialGradient id="gold" cx="32%" cy="26%" r="78%"><stop offset="0" stop-color="#fffbe0"/><stop offset=".14" stop-color="#f8e6a2"/><stop offset=".34" stop-color="#d69b36"/><stop offset=".58" stop-color="#f4ce68"/><stop offset=".79" stop-color="#ad6b17"/><stop offset="1" stop-color="#f3d477"/></radialGradient>
+          <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0b6"/><stop offset=".3" stop-color="#a66c1c"/><stop offset=".62" stop-color="#ffe6a0"/><stop offset="1" stop-color="#8a5717"/></linearGradient>
+          <linearGradient id="edge3d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff4c9"/><stop offset=".18" stop-color="#805017"/><stop offset=".4" stop-color="#f4ce71"/><stop offset=".62" stop-color="#7d4b12"/><stop offset=".82" stop-color="#ffe8a5"/><stop offset="1" stop-color="#734610"/></linearGradient>
+          <linearGradient id="skin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f2c29a"/><stop offset=".48" stop-color="#d99572"/><stop offset="1" stop-color="#9d5e4d"/></linearGradient>
+          <linearGradient id="skinLight" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f5c8a5"/><stop offset=".55" stop-color="#dc9d7d"/><stop offset="1" stop-color="#aa6955"/></linearGradient>
+        </defs>
+        <rect width="100%" height="100%" rx="22" fill="url(#backdrop)"/>
+        <rect x="7" y="7" width="346" height="246" rx="18" fill="none" stroke="#785469" stroke-width="1.5"/>
+        <ellipse cx="${centerX}" cy="119" rx="130" ry="115" fill="url(#halo)" opacity="${liftGlow.toFixed(2)}"/>
+        <text x="${centerX}" y="31" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="800" letter-spacing="4" fill="#f5dfba">COIN FLIP</text>
+        <text x="${centerX}" y="49" text-anchor="middle" font-family="Arial,sans-serif" font-size="8" font-weight="600" letter-spacing="2" fill="#ba9baa">FAIR 50 / 50</text>
+        <ellipse cx="${centerX}" cy="219" rx="${shadowWidth}" ry="8" fill="#08060b" opacity="${shadowOpacity.toFixed(2)}"/>
+        <ellipse cx="${centerX}" cy="217" rx="${shadowWidth * 0.72}" ry="3" fill="#d7a54b" opacity="${(0.13 - 0.08 * liftGlow).toFixed(2)}"/>
+        ${hand}
+        ${coin}
+        <text x="${centerX}" y="246" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="600" letter-spacing="2" fill="#aa8798">THUMB-FLICK TOSS · SECURE RANDOM RESULT</text>
+      </svg>`;
     frames.push(await sharp(Buffer.from(svg)).png().toBuffer());
   }
 
