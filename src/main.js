@@ -50,6 +50,7 @@ import { modCommands, installModeration, logCase } from './staff-moderation.js';
 import { imageModeration } from './image-moderation.js';
 import { ensureServerFeatures, priceEmbed, archiveTicket } from './features.js';
 import { supportAnswer } from './ai.js';
+import { supportLanguage } from './common-answers.js';
 
 const env = process.env;
 const validate = process.argv.includes('--validate');
@@ -1210,7 +1211,7 @@ function isCommunityHelpQuestion(content) {
   const text = content.trim();
   return (
     /[?？]/.test(text) ||
-    /\b(?:help|support|question|how|what|where|when|why|who|which|can|could|would|do|does|is|are|need help|help me|i need|i want|wie|was|wo|wann|warum|wer|welche|kann|kannst|können|hilfe|ich brauche|bitte hilf|hoe|wat|waar|wanneer|waarom|wie|kan|kun|kunnen|hulp|ik heb hulp|help mij|weet iemand)\b/i.test(
+    /\b(?:help|support|question|how|what|where|when|why|who|which|can|could|would|do|does|is|are|need help|help me|i need|i want|wie|was|wo|wann|warum|wer|welche|kann|kannst|können|hilfe|ich brauche|ich möchte|bitte hilf|herunterladen|downloaden|fordere|hoe|wat|waar|wanneer|waarom|wie|kan|kun|kunnen|hulp|ik heb hulp|help mij|weet iemand)\b/i.test(
       text,
     )
   );
@@ -1385,7 +1386,10 @@ assistance.on(Events.MessageCreate, async (m) => {
       console.error(`Community support reply failed in #${m.channel.name}:`, error);
       await m.channel
         .send({
-          content: 'I could not answer right now. Please open a support ticket.',
+          content:
+            supportLanguage(question) === 'de'
+              ? 'Ich kann gerade nicht antworten. Bitte öffne ein Support-Ticket.'
+              : 'I could not answer right now. Please open a support ticket.',
           allowedMentions: { parse: [] },
         })
         .catch(() => {});
@@ -1399,11 +1403,7 @@ assistance.on(Events.MessageCreate, async (m) => {
       (await m.channel.messages.fetch(m.reference.messageId).catch(() => null))?.author.id ===
         assistance.user.id);
   if (
-    !directed &&
-    !/[?？]/.test(m.content) &&
-    !/^\s*(how|what|where|when|why|can|could|would|does|do|is|are|will|help|hi+|hello|hey|thanks|thank|i need|i want|i can.t|it won.t|it doesn.t|and|also|then|so|yes|no|ok)\b/i.test(
-      m.content,
-    )
+    !directed && !isCommunityHelpQuestion(m.content)
   )
     return;
   try {
@@ -1421,7 +1421,11 @@ assistance.on(Events.MessageCreate, async (m) => {
     }
   } catch {
     await m.channel
-      .send('I could not answer right now. Please use **Request staff**.')
+      .send(
+        supportLanguage(m.content) === 'de'
+          ? 'Ich kann gerade nicht antworten. Bitte nutze **Request staff**.'
+          : 'I could not answer right now. Please use **Request staff**.',
+      )
       .catch(() => {});
   }
 });

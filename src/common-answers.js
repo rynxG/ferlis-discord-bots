@@ -1,9 +1,92 @@
 // Free, local answers for general etiquette; server facts still come from /teach.
-export function commonAnswer(question) {
-  const q = question
+function normalizeQuestion(question) {
+  return question
+    .normalize('NFKD')
+    .replace(/\p{M}/gu, '')
+    .replace(/ß/g, 'ss')
     .toLowerCase()
-    .replace(/\bhi+\b/g, 'hi')
-    .replace(/[^a-z0-9\s?]/g, ' ');
+    .replace(/[^a-z0-9\s?]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function supportLanguage(question) {
+  const q = normalizeQuestion(question);
+  const hints = [
+    'ich',
+    'mochte',
+    'herunterladen',
+    'herunterlade',
+    'kannst',
+    'konnen',
+    'nicht',
+    'bitte',
+    'danke',
+    'warum',
+    'wann',
+    'brauche',
+    'euch',
+    'habe',
+    'hast',
+    'hilfe',
+    'mitarbeiter',
+    'anfordern',
+    'kostet',
+    'kaufen',
+  ];
+  const words = new Set(q.split(' '));
+  const hits = hints.filter((word) => words.has(word)).length;
+  return (
+    hits >= 2 ||
+    /\b(?:ich|mochte|herunterladen|herunterlade|anfordern)\b/.test(q) ||
+    /\b(?:kannst|konnen|nicht|bitte|danke|warum|wann|brauche|euch|hilfe|mitarbeiter|kostet|kaufen|wo)\b/.test(
+      q,
+    )
+  )
+    ? 'de'
+    : 'en';
+}
+
+export function commonAnswer(question) {
+  const q = normalizeQuestion(question).replace(/\bhi+\b/g, 'hi');
+  if (supportLanguage(question) === 'de') {
+    const germanRules = [
+      [
+        /\b(client|chirsp|chrisp|ferlis|felris|feris)\b.*\b(herunterladen|herunterlade|downloaden|download|installieren)\b|\b(herunterladen|herunterlade|downloaden|download|installieren)\b.*\b(client|chirsp|chrisp|ferlis|felris|feris)\b/,
+        'Der Client ist noch nicht offiziell veröffentlicht. Bitte lade keine geleakte Version herunter; sie könnte deine Geräte- oder Kontoinformationen gefährden. Warte auf einen Download-Link in den offiziellen Ankündigungen und nutze nur diesen.',
+      ],
+      [
+        /\b(client|chirsp|chrisp|ferlis|felris|feris)\b.*\b(preis|kostet|kosten|teuer|preislich)\b|\b(preis|kostet|kosten|teuer|preislich)\b.*\b(client|chirsp|chrisp|ferlis|felris|feris)\b/,
+        '**Basic Edition ist kostenlos. CHRISP+ kostet 7,99 €** oder den entsprechenden Betrag in deiner Landeswährung. Bitte bestätige Bestellungen über ein Purchase-Ticket mit dem Team.',
+      ],
+      [
+        /\b(kaufen|bestellen|zahlung|bezahlen|purchase)\b/,
+        'Öffne das Ticket-Panel und wähle **Purchase**. Wähle anschließend **Client**, **Accounts** oder **Something else** und nenne dein Budget. Das Team bestätigt Verfügbarkeit, Preis und Zahlungsdetails im privaten Ticket.',
+      ],
+      [
+        /\b(personal|mitarbeiter|team|staff)\b.*\b(anfordern|fordere|fordern|sprechen|kontakt|erreichen|hilfe|antworten)\b|\b(anfordern|fordere|sprechen|kontakt|erreichen)\b.*\b(personal|mitarbeiter|team|staff)\b/,
+        'Für persönliche Hilfe öffne ein Support-Ticket und nutze dort **Request staff**. Beschreibe dein Anliegen einmal und warte auf eine Antwort; das Team kann beschäftigt oder offline sein.',
+      ],
+      [
+        /\b(ticket|support)\b.*\b(eroffnen|offnen|erstellen|machen|geht nicht|funktioniert nicht|fehler)\b/,
+        'Wähle im Ticket-Panel **Support** und beschreibe dein Anliegen. Falls das Erstellen fehlschlägt, prüfe, ob du bereits ein offenes Ticket hast. Wenn die Fehlermeldung bleibt, bitte das Team um Hilfe.',
+      ],
+      [
+        /\b(staff|mitarbeiter|support|team)\b.*\b(ping|pingen|markieren|erwahnen|spam)|\b(ping|pingen|markieren|erwahnen)\b.*\b(staff|mitarbeiter|support|team)\b/,
+        'Bitte pinge das Team nicht wiederholt. Sende deine Frage einmal mit den nötigen Informationen und warte. Nutze in einem Ticket **Request staff**, wenn du persönliche Hilfe brauchst.',
+      ],
+      [
+        /\b(konto|konten|account|accounts|token)\b.*\b(preis|kostet|kosten|kaufen)\b|\b(preis|kostet|kosten|kaufen)\b.*\b(konto|konten|account|accounts|token)\b/,
+        'Für Konten: **24h Java Token — 20M** oder **0,25 €**; **3d Token — 80M** oder **0,70 €**. Bei Echtgeldkäufen gilt eine Mindestmenge von **5 Accounts**. Bitte bestätige Verfügbarkeit und Zahlungsdetails in einem Purchase-Ticket.',
+      ],
+      [
+        /\b(hallo|hi|hey|guten morgen|guten abend|danke|vielen dank)\b/,
+        'Hallo! Wobei kann ich dir helfen? Stelle deine Frage gern direkt hier. Für persönliche Hilfe nutze **Request staff** in deinem Ticket.',
+      ],
+    ];
+    for (const [match, answer] of germanRules) if (match.test(q)) return answer;
+    return null;
+  }
   const rules = [
     [
       /\b(accounts?|tokens?)\b.*\b(price|cost|much)|\b(price|cost|much)\b.*\b(accounts?|tokens?)\b/,
