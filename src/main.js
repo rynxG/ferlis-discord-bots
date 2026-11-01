@@ -52,6 +52,7 @@ import { imageModeration } from './image-moderation.js';
 import { ensureServerFeatures, priceEmbed, archiveTicket } from './features.js';
 import { supportAnswer } from './ai.js';
 import { supportLanguage } from './common-answers.js';
+import { activityCommands, installActivity } from './activity.js';
 
 const env = process.env;
 const validate = process.argv.includes('--validate');
@@ -463,7 +464,11 @@ async function moderate(message, edited = false) {
       return;
     }
     const target = findLanguageChat(message.guild, detected);
-    const targetRef = target ? `<#${target.id}>` : detected === 'de' ? '#german-chat' : '#english-chat';
+    const targetRef = target
+      ? `<#${target.id}>`
+      : detected === 'de'
+        ? '#german-chat'
+        : '#english-chat';
     const reminder =
       detected === 'de'
         ? `<@${message.author.id}> please go to ${targetRef} to talk in dutch, Thank you!`
@@ -473,7 +478,9 @@ async function moderate(message, edited = false) {
         content: reminder,
         allowedMentions: { users: [message.author.id], parse: [] },
       })
-      .catch((e) => report(partik, `Could not send language reminder in ${message.channelId}: ${e.message}`));
+      .catch((e) =>
+        report(partik, `Could not send language reminder in ${message.channelId}: ${e.message}`),
+      );
     await report(
       partik,
       `Jerry removed a ${detected === 'de' ? 'German' : 'English'} message from ${message.author.id} in the ${expected === 'de' ? 'German' : 'English'} chat (no moderation strike).`,
@@ -610,6 +617,7 @@ const utility = makeClient(
   'Feris Utility',
   [
     dashboardCommand,
+    ...activityCommands,
     command('ticket-setup', 'Create private ticket categories and post the ticket panel', true),
     command('ticket-close', 'Close and lock the current ticket'),
     command('basefind', 'Share a base find (Chrisp+ members only)')
@@ -630,6 +638,7 @@ const utility = makeClient(
   ],
   true,
 );
+installActivity(utility, db);
 let infrastructure;
 utility.once(Events.ClientReady, () => {
   infrastructure = (async () => {
@@ -1462,10 +1471,7 @@ assistance.on(Events.MessageCreate, async (m) => {
     (m.reference?.messageId &&
       (await m.channel.messages.fetch(m.reference.messageId).catch(() => null))?.author.id ===
         assistance.user.id);
-  if (
-    !directed && !isCommunityHelpQuestion(m.content)
-  )
-    return;
+  if (!directed && !isCommunityHelpQuestion(m.content)) return;
   try {
     await m.channel.sendTyping();
     const result = await answer(m.channel, m.content);
