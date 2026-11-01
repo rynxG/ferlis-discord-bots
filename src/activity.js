@@ -15,6 +15,8 @@ const day = 24 * 60 * 60 * 1000;
 const today = () => new Date().toISOString().slice(0, 10);
 const yesterday = () => new Date(Date.now() - day).toISOString().slice(0, 10);
 const maxBet = 100;
+const hourlyGambleLimit = 15;
+const hour = 60 * 60 * 1000;
 const redNumbers = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
 const rouletteColor = (number) =>
   number === 0 ? 'green' : redNumbers.has(number) ? 'red' : 'black';
@@ -71,6 +73,85 @@ async function createRouletteGif(result) {
 
   return sharp(frames, { join: { animated: true } })
     .gif({ loop: 1, delay: frames.map((_, index) => (index > 12 ? 140 : 70)), effort: 5 })
+    .toBuffer();
+}
+
+async function createCoinGif(result) {
+  const width = 340;
+  const height = 220;
+  const centerX = width / 2;
+  const centerY = 103;
+  const radius = 70;
+  const frames = [];
+  const frameCount = 24;
+  const finalAngle = result === 'heads' ? Math.PI * 8 : Math.PI * 9;
+
+  for (let frame = 0; frame < frameCount; frame++) {
+    const progress = frame / (frameCount - 1);
+    const eased = 1 - (1 - progress) ** 3;
+    const angle = finalAngle * eased;
+    const face = Math.cos(angle) >= 0 ? 'HEADS' : 'TAILS';
+    const scaleX = Math.max(0.08, Math.abs(Math.cos(angle)));
+    const coin =
+      scaleX < 0.22
+        ? `<ellipse cx="${centerX}" cy="${centerY}" rx="${radius * 0.22}" ry="${radius}" fill="#c78219" stroke="#ffe39a" stroke-width="5"/><path d="M ${centerX - 5} ${centerY - 48} v 96 M ${centerX + 5} ${centerY - 48} v 96" stroke="#f8d277" stroke-width="3" opacity=".75"/>`
+        : `<g transform="translate(${centerX} ${centerY}) scale(${scaleX} 1)"><circle r="${radius}" fill="url(#gold)" stroke="#fff0b6" stroke-width="6"/><circle r="${radius - 11}" fill="none" stroke="#9c5d13" stroke-width="3"/><text x="0" y="-4" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="25" font-weight="800" fill="#5e390e">${face}</text><text x="0" y="27" text-anchor="middle" font-family="Arial,sans-serif" font-size="27" font-weight="800" fill="#73470f">C</text></g>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0aa"/><stop offset=".45" stop-color="#edba50"/><stop offset="1" stop-color="#b97118"/></linearGradient></defs><rect width="100%" height="100%" rx="20" fill="#201217"/><ellipse cx="${centerX}" cy="182" rx="58" ry="9" fill="#090609" opacity=".75"/>${coin}<text x="${centerX}" y="207" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="2" fill="#e7c995">FAIR 50 / 50 FLIP</text></svg>`;
+    frames.push(await sharp(Buffer.from(svg)).png().toBuffer());
+  }
+
+  return sharp(frames, { join: { animated: true } })
+    .gif({ loop: 1, delay: frames.map((_, index) => (index > 17 ? 130 : 65)), effort: 5 })
+    .toBuffer();
+}
+
+async function createBlackjackGif(game, revealDealer = false) {
+  const width = 360;
+  const height = 230;
+  const frames = [];
+  const frameCount = 14;
+  const cardWidth = 44;
+  const cardHeight = 64;
+  const displayCards = (cards, y, visibleCount, hideHole = false) => {
+    const shown = cards.slice(0, 5);
+    const cardsSvg = shown
+      .slice(0, visibleCount)
+      .map((card, index) => {
+        const x = 48 + index * 53;
+        const red = ['♥️', '♦️'].includes(card.suit);
+        return `<g><rect x="${x}" y="${y}" width="${cardWidth}" height="${cardHeight}" rx="6" fill="#fbf5e8" stroke="#d5b76c" stroke-width="2"/><text x="${x + 5}" y="${y + 17}" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="${red ? '#c34447' : '#24252a'}">${card.rank}</text><text x="${x + 22}" y="${y + 46}" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" fill="${red ? '#c34447' : '#24252a'}">${card.suit}</text></g>`;
+      })
+      .join('');
+    let backSvg = '';
+    if (hideHole) {
+      const x = 48 + (shown.length > 1 ? 53 : 0);
+      backSvg = `<g><rect x="${x}" y="${y}" width="${cardWidth}" height="${cardHeight}" rx="6" fill="#3d2852" stroke="#d5b76c" stroke-width="2"/><rect x="${x + 5}" y="${y + 5}" width="${cardWidth - 10}" height="${cardHeight - 10}" rx="4" fill="none" stroke="#c39cde" stroke-width="2"/><text x="${x + 22}" y="${y + 41}" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" fill="#f3e9ff">✦</text></g>`;
+    }
+    const overflow =
+      cards.length > shown.length
+        ? `<text x="${48 + shown.length * 53}" y="${y + 37}" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="#f2dfb1">+${cards.length - shown.length}</text>`
+        : '';
+    return cardsSvg + backSvg + overflow;
+  };
+
+  for (let frame = 0; frame < frameCount; frame++) {
+    const progress = frame / (frameCount - 1);
+    const playerVisible = Math.min(game.player.length, Math.ceil(progress * game.player.length));
+    const dealerVisible = revealDealer
+      ? Math.min(game.dealer.length, Math.ceil(progress * game.dealer.length))
+      : 1;
+    const dealerCards = displayCards(game.dealer, 53, dealerVisible, !revealDealer);
+    const playerCards = displayCards(game.player, 143, playerVisible);
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" rx="18" fill="#201217"/><text x="20" y="27" font-family="Arial,sans-serif" font-size="17" font-weight="800" fill="#f4e2c2">♠ BLACKJACK</text><text x="340" y="27" text-anchor="end" font-family="Arial,sans-serif" font-size="12" fill="#e0cda9">BET ${game.bet} POINTS</text><text x="20" y="47" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#c7b394">DEALER ${revealDealer ? handValue(game.dealer) : '· ·'}</text>${dealerCards}<text x="20" y="137" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#c7b394">YOU ${handValue(game.player)}</text>${playerCards}</svg>`;
+    frames.push(await sharp(Buffer.from(svg)).png().toBuffer());
+  }
+
+  return sharp(frames, { join: { animated: true } })
+    .gif({
+      loop: 1,
+      delay: frames.map((_, index) => (index === frameCount - 1 ? 180 : 75)),
+      effort: 5,
+    })
     .toBuffer();
 }
 
@@ -212,6 +293,10 @@ export function installActivity(client, db) {
     bet INTEGER NOT NULL,
     kind TEXT NOT NULL,
     created INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS activity_gamble_uses (
+    user TEXT NOT NULL,
+    created INTEGER NOT NULL
   );`);
 
   db.exec('BEGIN IMMEDIATE');
@@ -235,6 +320,30 @@ export function installActivity(client, db) {
   const getUser = db.prepare('SELECT * FROM activity_users WHERE user=?');
   const addPoints = db.prepare('UPDATE activity_users SET points=points+? WHERE user=?');
   const blackjacks = new Map();
+
+  function recordGamble(user) {
+    const cutoff = Date.now() - hour;
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.prepare('DELETE FROM activity_gamble_uses WHERE created<=?').run(cutoff);
+      const used = db
+        .prepare('SELECT COUNT(*) AS count FROM activity_gamble_uses WHERE user=? AND created>?')
+        .get(user, cutoff).count;
+      if (used >= hourlyGambleLimit) {
+        db.exec('COMMIT');
+        return false;
+      }
+      db.prepare('INSERT INTO activity_gamble_uses(user,created) VALUES (?,?)').run(
+        user,
+        Date.now(),
+      );
+      db.exec('COMMIT');
+      return true;
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+  }
 
   function reserveBet(user, bet, kind) {
     ensureUser.run(user);
@@ -323,11 +432,22 @@ export function installActivity(client, db) {
       );
   }
 
+  async function blackjackMessage(game, revealDealer = false, status = '') {
+    const animation = await createBlackjackGif(game, revealDealer);
+    const embed = renderBlackjack(game, revealDealer, status).setImage(
+      'attachment://blackjack.gif',
+    );
+    return {
+      embeds: [embed],
+      files: [new AttachmentBuilder(animation, { name: 'blackjack.gif' })],
+    };
+  }
+
   async function finishBlackjack(interaction, id, game, result, payout) {
     const balance = settleBet(id, payout);
     blackjacks.delete(id);
     return interaction.update({
-      embeds: [renderBlackjack(game, true, `${result}\nBalance: **${balance} points**`)],
+      ...(await blackjackMessage(game, true, `${result}\nBalance: **${balance} points**`)),
       components: [],
       allowedMentions: { parse: [] },
     });
@@ -365,20 +485,32 @@ export function installActivity(client, db) {
 
     if (interaction.commandName === 'coinflip') {
       ensureUser.run(interaction.user.id);
+      if (!recordGamble(interaction.user.id)) {
+        return interaction.reply({
+          content: 'You’ve reached the limit of **15 gambles per hour**. Try again later.',
+        });
+      }
       const guess = interaction.options.getString('guess', true);
       const result = randomInt(2) === 0 ? 'heads' : 'tails';
       const won = guess === result;
       if (won) addPoints.run(4, interaction.user.id);
+      let animation;
+      try {
+        animation = await createCoinGif(result);
+      } catch (error) {
+        console.error('Coin flip GIF generation failed.', error);
+      }
+      const embed = new EmbedBuilder()
+        .setColor(won ? 0x36c275 : 0xe34b4b)
+        .setTitle(won ? 'Nice guess!' : 'So close!')
+        .setDescription(
+          `It landed on **${result}**. ${won ? 'You earned **4 points**.' : 'Try again with **/coinflip**.'}`,
+        )
+        .setFooter({ text: 'Fair 50/50 toss • secure random result' });
+      if (animation) embed.setImage('attachment://coin-flip.gif');
       return interaction.reply({
-        embeds: [
-          new EmbedBuilder()
-            .setColor(won ? 0x36c275 : 0xe34b4b)
-            .setTitle(won ? 'Nice guess!' : 'So close!')
-            .setDescription(
-              `It landed on **${result}**. ${won ? 'You earned **4 points**.' : 'Try again with **/coinflip**.'}`,
-            ),
-        ],
-        flags: MessageFlags.Ephemeral,
+        embeds: [embed],
+        ...(animation && { files: [new AttachmentBuilder(animation, { name: 'coin-flip.gif' })] }),
       });
     }
 
@@ -442,6 +574,12 @@ export function installActivity(client, db) {
       const reservation = reserveBet(interaction.user.id, bet, 'blackjack');
       if (reservation.error)
         return interaction.reply({ content: reservation.error, flags: MessageFlags.Ephemeral });
+      if (!recordGamble(interaction.user.id)) {
+        settleBet(reservation.id, bet);
+        return interaction.reply({
+          content: 'You’ve reached the limit of **15 gambles per hour**. Your bet was returned.',
+        });
+      }
       const deck = makeDeck();
       const game = {
         owner: interaction.user.id,
@@ -480,7 +618,7 @@ export function installActivity(client, db) {
           0,
         );
       return interaction.reply({
-        embeds: [renderBlackjack(game)],
+        ...(await blackjackMessage(game)),
         components: [
           new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -502,6 +640,12 @@ export function installActivity(client, db) {
       const reservation = reserveBet(interaction.user.id, bet, 'roulette');
       if (reservation.error)
         return interaction.reply({ content: reservation.error, flags: MessageFlags.Ephemeral });
+      if (!recordGamble(interaction.user.id)) {
+        settleBet(reservation.id, bet);
+        return interaction.reply({
+          content: 'You’ve reached the limit of **15 gambles per hour**. Your bet was returned.',
+        });
+      }
       const result = randomInt(37);
       const landed = rouletteColor(result);
       const won = landed === target;
@@ -555,7 +699,7 @@ export function installActivity(client, db) {
         if (handValue(game.player) > 21)
           return finishBlackjack(interaction, id, game, 'Bust — your bet is lost.', 0);
         return interaction.update({
-          embeds: [renderBlackjack(game)],
+          ...(await blackjackMessage(game)),
           components: interaction.message.components,
         });
       }
