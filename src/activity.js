@@ -507,7 +507,16 @@ export function installActivity(client, db) {
       const won = landed === target;
       const payout = won ? bet * (target === 'green' ? 36 : 2) : 0;
       await interaction.deferReply();
-      const animation = await createRouletteGif(result);
+      let animation;
+      try {
+        animation = await createRouletteGif(result);
+      } catch (error) {
+        settleBet(reservation.id, bet);
+        console.error('Roulette GIF generation failed; the bet was refunded.', error);
+        return interaction.editReply({
+          content: 'The wheel could not be rendered, so your bet was refunded.',
+        });
+      }
       const balance = settleBet(reservation.id, payout);
       const embed = new EmbedBuilder()
         .setColor(won ? 0x36c275 : 0xe34b4b)
