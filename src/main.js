@@ -61,6 +61,12 @@ const jerryGambleGuildIds = new Set(
     .map((id) => id.trim())
     .filter((id) => id && id !== env.GUILD_ID),
 );
+const jerryLeaveGuildIds = new Set(
+  (env.JERRY_LEAVE_GUILD_IDS || '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter((id) => id && id !== env.GUILD_ID && !jerryGambleGuildIds.has(id)),
+);
 const validate = process.argv.includes('--validate');
 if (!validate && !process.argv.includes('--worker')) process.exit(await supervise(env));
 const required = ['GUILD_ID', 'PARTIK_TOKEN', 'UTILITY_TOKEN', 'ASSISTANCE_TOKEN', 'ASSISTANCE_ID'];
@@ -257,6 +263,15 @@ function makeClient(name, commands, messageContent = false, members = false) {
             console.log(`Jerry gambling commands installed in ${gameGuild.name}.`);
           } catch (error) {
             console.error(`Jerry gambling setup failed for guild ${guildId}: ${error.message}`);
+          }
+        }
+        for (const guildId of jerryLeaveGuildIds) {
+          try {
+            const oldGuild = await client.guilds.fetch(guildId);
+            await oldGuild.leave();
+            console.log(`Jerry left ${oldGuild.name} (${guildId}) as requested.`);
+          } catch (error) {
+            console.error(`Jerry could not leave guild ${guildId}: ${error.message}`);
           }
         }
       }
@@ -1254,6 +1269,36 @@ const assistance = makeClient(
         .setMaxLength(2000)
         .setRequired(true),
     ),
+    command('translate', 'Translate text privately in this server')
+      .addStringOption((o) =>
+        o
+          .setName('from')
+          .setDescription('Language of the original text')
+          .setRequired(true)
+          .addChoices(
+            { name: 'English', value: 'en' },
+            { name: 'German', value: 'de' },
+            { name: 'Dutch', value: 'nl' },
+          ),
+      )
+      .addStringOption((o) =>
+        o
+          .setName('to')
+          .setDescription('Language to translate into')
+          .setRequired(true)
+          .addChoices(
+            { name: 'English', value: 'en' },
+            { name: 'German', value: 'de' },
+            { name: 'Dutch', value: 'nl' },
+          ),
+      )
+      .addStringOption((o) =>
+        o
+          .setName('text')
+          .setDescription('Text to translate (sent privately to you)')
+          .setRequired(true)
+          .setMaxLength(1500),
+      ),
   ],
   true,
 );
@@ -1280,6 +1325,7 @@ assistance.once(Events.ClientReady, async () => {
 const busy = new Set();
 const lastAnswer = new Map();
 const contentIntentWarnings = new Set();
+const translateCooldown = new Map();
 function expectedChatLanguage(channel) {
   if (channel?.type !== ChannelType.GuildText) return null;
   if ((channel.name || '').includes('🇩🇪')) return 'de';
@@ -1318,12 +1364,24 @@ function isPublicCommunityChat(channel) {
   );
 }
 function isCommunityHelpQuestion(content) {
-  const text = content.trim();
+  const text = content.replace(/<@!?\d+>/g, '').trim();
+  if (!text) return false;
+  if (/[?？]/.test(text)) return true;
+
+  // Only treat clear question forms or explicit requests for help as questions.
+  // A bot mention or reply by itself must not cause an answer to every follow-up.
   return (
-    /[?？]/.test(text) ||
-    /\b(?:help|support|question|how|what|where|when|why|who|which|can|could|would|do|does|is|are|need help|help me|i need|i want|wie|was|wo|wann|warum|wer|welche|kann|kannst|können|hilfe|ich brauche|ich möchte|bitte hilf|herunterladen|downloaden|fordere|hoe|wat|waar|wanneer|waarom|wie|kan|kun|kunnen|hulp|ik heb hulp|help mij|weet iemand)\b/i.test(
+    /^(?:who|what|when|where|why|which|how|whose|whom|wie|was|wo|wann|warum|wer|welche|welcher|welches|hoe|wat|waar|wanneer|waarom|wie)\b/i.test(
       text,
-    )
+    ) ||
+    /^(?:can|could|would|will|do|does|did|is|are|am|should|have|has|kann|kannst|können|ist|sind|hast|haben|kan|kun|kunnen|is|zijn|heb|heeft)\s+(?:i|you|we|they|he|she|it|this|that|the|ich|du|wir|ihr|sie|er|es|dit|dat|ik|jij|je|wij|we|jullie|zij|u)\b/i.test(
+      text,
+    ) ||
+    /^(?:help|help me|please help|need help|i need help|we need help|help mij|ik heb hulp nodig|ich brauche hilfe|bitte hilf|ik heb hulp|weet iemand|does anyone know|can someone help)\b/i.test(
+      text,
+    ) ||
+    /\b(?:i|we)\s+(?:need|want)\s+(?:help|support|to know)\b/i.test(text) ||
+    /^(?:tell|show)\s+me\s+(?:how|where|what|which)\b/i.test(text)
   );
 }
 async function answer(channel, question, askerId) {
@@ -1410,6 +1468,47 @@ onInteraction(assistance, async (i) => {
       .run(i.options.getInteger('id', true));
     return i.reply(ephemeral(result.changes ? 'Answer removed.' : 'Knowledge ID not found.'));
   }
+  if (i.commandName === 'translate') {
+    const lastRequest = translateCooldown.get(i.user.id) || 0;
+    if (Date.now() - lastRequest < 4000)
+      return i.reply(ephemeral('Please wait a few seconds before translating again.'));
+    translateCooldown.set(i.user.id, Date.now());
+    const source = i.options.getString('from', true);
+    const target = i.options.getString('to', true);
+    const text = i.options.getString('text', true).trim();
+    if (source === target) return i.reply(ephemeral('Choose two different languages.'));
+    await i.deferReply({ flags: MessageFlags.Ephemeral });
+    try {
+      const endpoint = new URL(env.LIBRETRANSLATE_URL || 'https://translate.fedilab.app/translate');
+      if (endpoint.protocol !== 'https:' || !endpoint.pathname.endsWith('/translate'))
+        throw new Error('Invalid translation endpoint configuration.');
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        signal: AbortSignal.timeout(20000),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          q: text,
+          source,
+          target,
+          format: 'text',
+          ...(env.LIBRETRANSLATE_API_KEY && { api_key: env.LIBRETRANSLATE_API_KEY }),
+        }),
+      });
+      if (!response.ok) throw new Error(`Translation service returned ${response.status}.`);
+      const translation = (await response.json()).translatedText?.trim();
+      if (!translation) throw new Error('Translation service returned an empty result.');
+      const names = { en: 'English', de: 'German', nl: 'Dutch' };
+      return i.editReply({
+        content: `**${names[source]} → ${names[target]}**\n${translation.slice(0, 1800)}`,
+        allowedMentions: { parse: [] },
+      });
+    } catch (error) {
+      console.error('Private translation failed:', error.message);
+      return i.editReply(
+        'Translation is temporarily unavailable. Please try again in a little while.',
+      );
+    }
+  }
   const row = ticket(i.channelId);
   if (!row || row.state !== 'open')
     return i.reply(ephemeral('Use this command inside an open support ticket.'));
@@ -1481,13 +1580,8 @@ assistance.on(Events.MessageCreate, async (m) => {
       }
       return;
     }
-    const directed =
-      m.mentions.users.has(assistance.user.id) ||
-      (m.reference?.messageId &&
-        (await m.channel.messages.fetch(m.reference.messageId).catch(() => null))?.author.id ===
-          assistance.user.id);
-    if (!directed && !isCommunityHelpQuestion(m.content)) return;
     const question = m.content.replace(new RegExp(`<@!?${assistance.user.id}>`, 'g'), '').trim();
+    if (!isCommunityHelpQuestion(question)) return;
     try {
       await m.channel.sendTyping();
       const result = await answer(m.channel, question, m.author.id);
@@ -1507,12 +1601,8 @@ assistance.on(Events.MessageCreate, async (m) => {
     return;
   }
   if (!row || row.state !== 'open' || m.author.id !== row.owner || !m.content.trim()) return;
-  const directed =
-    m.mentions.users.has(assistance.user.id) ||
-    (m.reference?.messageId &&
-      (await m.channel.messages.fetch(m.reference.messageId).catch(() => null))?.author.id ===
-        assistance.user.id);
-  if (!directed && !isCommunityHelpQuestion(m.content)) return;
+  const question = m.content.replace(new RegExp(`<@!?${assistance.user.id}>`, 'g'), '').trim();
+  if (!isCommunityHelpQuestion(question)) return;
   try {
     await m.channel.sendTyping();
     const result = await answer(m.channel, m.content);
