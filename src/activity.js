@@ -480,15 +480,46 @@ export function installActivity(client, db) {
   const minesGames = new Map();
 
   function gambleLimitFor(interaction) {
-    const isAdmin = interaction.memberPermissions?.has(PermissionFlagsBits.Administrator);
     const member = interaction.member;
-    const hasChrispPlus =
-      member?.roles?.cache?.some((role) => role.name.trim().toLowerCase() === 'chrisp+') ||
+    const roleCache = member?.roles?.cache;
+    const roleIds = roleCache
+      ? [...roleCache.keys()]
+      : Array.isArray(member?.roles)
+        ? member.roles
+        : [];
+    const premiumRoleId = db
+      .prepare("SELECT value FROM settings WHERE key='role:Ferlis+'")
+      .get()?.value;
+    const adminRoleNames = new Set([
+      'admin',
+      'administrator',
+      'administrators',
+      'development team',
+    ]);
+    const hasAdminPermission =
+      interaction.memberPermissions?.has(PermissionFlagsBits.Administrator) ||
+      roleCache?.some(
+        (role) =>
+          role.permissions.has(PermissionFlagsBits.Administrator) ||
+          adminRoleNames.has(role.name.trim().toLowerCase()),
+      ) ||
       (Array.isArray(member?.roles) &&
         interaction.guild?.roles.cache.some(
-          (role) => role.name.trim().toLowerCase() === 'chrisp+' && member.roles.includes(role.id),
+          (role) =>
+            adminRoleNames.has(role.name.trim().toLowerCase()) && member.roles.includes(role.id),
         ));
-    return isAdmin || hasChrispPlus ? privilegedHourlyGambleLimit : standardHourlyGambleLimit;
+    const hasPremiumRole =
+      (premiumRoleId && roleIds.includes(premiumRoleId)) ||
+      roleCache?.some((role) => ['chrisp+', 'ferlis+'].includes(role.name.trim().toLowerCase())) ||
+      (Array.isArray(member?.roles) &&
+        interaction.guild?.roles.cache.some(
+          (role) =>
+            ['chrisp+', 'ferlis+'].includes(role.name.trim().toLowerCase()) &&
+            member.roles.includes(role.id),
+        ));
+    return hasAdminPermission || hasPremiumRole
+      ? privilegedHourlyGambleLimit
+      : standardHourlyGambleLimit;
   }
 
   function recordGamble(user, limit) {
