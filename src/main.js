@@ -1136,8 +1136,27 @@ onInteraction(utility, async (i) => {
     return i.reply(ephemeral('Staff assistance requested.'));
   }
 });
+const fuckYouReplies = new Map();
 utility.on(Events.MessageCreate, async (message) => {
   if (message.guildId !== env.GUILD_ID || message.author.bot || message.webhookId) return;
+  if (/\bfuck\s+you\b/iu.test(message.content)) {
+    const now = Date.now();
+    const lastReply = fuckYouReplies.get(message.author.id) || 0;
+    if (now - lastReply >= 5000) {
+      fuckYouReplies.set(message.author.id, now);
+      if (fuckYouReplies.size > 500) {
+        for (const [userId, timestamp] of fuckYouReplies) {
+          if (now - timestamp > 30000) fuckYouReplies.delete(userId);
+        }
+      }
+      await message
+        .reply({
+          content: 'fuck you too',
+          allowedMentions: { parse: [], repliedUser: false },
+        })
+        .catch((error) => console.error('Could not send phrase reply:', error));
+    }
+  }
   const row = ticket(message.channelId);
   if (!row || row.state !== 'open' || row.owner === message.author.id) return;
   const member =
