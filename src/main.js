@@ -274,6 +274,7 @@ const partik = makeClient(
   'Jerry',
   [
     ...modCommands,
+    ...activityCommands,
     command('moderation-status', 'Show Jerry moderation configuration', true),
     command('mod-unmute', 'Remove a member’s timeout and permanent mute', true).addUserOption((o) =>
       o.setName('member').setDescription('Member to unmute').setRequired(true),
@@ -617,7 +618,6 @@ const utility = makeClient(
   'Feris Utility',
   [
     dashboardCommand,
-    ...activityCommands,
     command('ticket-setup', 'Create private ticket categories and post the ticket panel', true),
     command('ticket-close', 'Close and lock the current ticket'),
     command('basefind', 'Share a base find (Chrisp+ members only)')
@@ -638,7 +638,7 @@ const utility = makeClient(
   ],
   true,
 );
-installActivity(utility, db);
+installActivity(partik, db);
 let infrastructure;
 utility.once(Events.ClientReady, () => {
   infrastructure = (async () => {

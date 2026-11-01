@@ -7,7 +7,6 @@ import {
   Events,
   MessageFlags,
   SlashCommandBuilder,
-  StringSelectMenuBuilder,
 } from 'discord.js';
 import { randomInt } from 'node:crypto';
 import sharp from 'sharp';
@@ -54,13 +53,13 @@ async function createRouletteGif(result) {
   const resultIndex = rouletteNumbers.indexOf(result);
   const finalRotation = -resultIndex * step;
   const frames = [];
-  const frameCount = 24;
+  const frameCount = 32;
 
   for (let frame = 0; frame < frameCount; frame++) {
     const progress = frame / (frameCount - 1);
-    const eased = 1 - (1 - progress) ** 3;
-    const rotation = finalRotation - 2.25 * 360 * (1 - eased);
-    const ballRotation = finalRotation - 3.5 * 360 * (1 - eased);
+    const eased = 1 - (1 - progress) ** 4;
+    const rotation = finalRotation - 3.25 * 360 * (1 - eased);
+    const ballRotation = -90 - 5.5 * 360 * (1 - eased);
     const slots = rouletteNumbers
       .map((number, index) => {
         const start = (-90 + index * step - step / 2) * (Math.PI / 180);
@@ -76,8 +75,7 @@ async function createRouletteGif(result) {
         const [x3, y3] = point(inner, end);
         const [x4, y4] = point(inner, start);
         const fill = number === 0 ? '#16834d' : redNumbers.has(number) ? '#b82d36' : '#25272d';
-        const labelAngle = -90 + index * step;
-        return `<path d="M ${x1} ${y1} A ${outer} ${outer} 0 0 1 ${x2} ${y2} L ${x3} ${y3} A ${inner} ${inner} 0 0 0 ${x4} ${y4} Z" fill="${fill}" stroke="#d2aa53" stroke-width="1.5"/><text x="${center}" y="${center - 160}" transform="rotate(${labelAngle} ${center} ${center})" fill="white" font-size="11" font-weight="700" text-anchor="middle" dominant-baseline="middle">${number}</text>`;
+        return `<path d="M ${x1} ${y1} A ${outer} ${outer} 0 0 1 ${x2} ${y2} L ${x3} ${y3} A ${inner} ${inner} 0 0 0 ${x4} ${y4} Z" fill="${fill}" stroke="#d2aa53" stroke-width="1.5"/><text x="${center}" y="${center - 160}" transform="rotate(${index * step} ${center} ${center})" fill="#fffdf7" stroke="#171316" stroke-width="1.5" paint-order="stroke" font-family="Arial,sans-serif" font-size="13" font-weight="800" text-anchor="middle" dominant-baseline="middle">${number}</text>`;
       })
       .join('');
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${renderSize}" height="${renderSize}" viewBox="0 0 ${size} ${size}"><defs><radialGradient id="felt"><stop offset="0" stop-color="#127548"/><stop offset="1" stop-color="#064327"/></radialGradient><linearGradient id="rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe59a"/><stop offset=".5" stop-color="#856021"/><stop offset="1" stop-color="#f3d378"/></linearGradient></defs><rect width="100%" height="100%" rx="24" fill="#171316"/><circle cx="${center}" cy="${center}" r="211" fill="url(#rim)" stroke="#f6df9a" stroke-width="3"/><circle cx="${center}" cy="${center}" r="198" fill="#674b1a" stroke="#a5833e" stroke-width="2"/><g transform="rotate(${rotation} ${center} ${center})">${slots}<circle cx="${center}" cy="${center}" r="130" fill="url(#felt)" stroke="#e0c16a" stroke-width="4"/><circle cx="${center}" cy="${center}" r="117" fill="none" stroke="#72c78a" stroke-opacity=".35" stroke-width="2"/><text x="${center}" y="${center + 12}" fill="#69d58e" font-family="Arial,sans-serif" font-size="52" font-weight="800" text-anchor="middle">C</text></g><g transform="rotate(${ballRotation} ${center} ${center})"><circle cx="${center}" cy="${center - 202}" r="8" fill="#fff8da" stroke="#70521e" stroke-width="3"/><circle cx="${center}" cy="${center - 202}" r="3" fill="white"/></g><path d="M ${center - 15} 6 L ${center + 15} 6 L ${center} 40 Z" fill="#fff1bd" stroke="#59451e" stroke-width="2"/><circle cx="${center}" cy="${center}" r="12" fill="#e9d184" stroke="#fff0bc" stroke-width="3"/></svg>`;
@@ -87,7 +85,7 @@ async function createRouletteGif(result) {
   return sharp(frames, { join: { animated: true } })
     .gif({
       loop: 1,
-      delay: frames.map((_, index) => (index > 17 ? 125 : 70)),
+      delay: frames.map((_, index) => (index > 23 ? 130 : 70)),
       colours: 128,
       dither: 0.15,
       interFrameMaxError: 0,
@@ -97,35 +95,36 @@ async function createRouletteGif(result) {
 }
 
 async function createCoinGif(result) {
-  const width = 340;
-  const height = 220;
+  const width = 360;
+  const height = 240;
   const renderWidth = 1080;
   const renderHeight = 720;
   const centerX = width / 2;
-  const centerY = 103;
-  const radius = 70;
+  const centerY = 112;
+  const radius = 88;
   const frames = [];
-  const frameCount = 24;
-  const finalAngle = result === 'heads' ? Math.PI * 4 : Math.PI * 5;
+  const frameCount = 32;
+  const finalAngle = result === 'heads' ? Math.PI * 6 : Math.PI * 7;
 
   for (let frame = 0; frame < frameCount; frame++) {
     const progress = frame / (frameCount - 1);
-    const eased = 1 - (1 - progress) ** 3;
+    const eased = 1 - (1 - progress) ** 4;
     const angle = finalAngle * eased;
     const face = Math.cos(angle) >= 0 ? 'HEADS' : 'TAILS';
-    const scaleX = Math.max(0.08, Math.abs(Math.cos(angle)));
+    const scaleX = Math.max(0.045, Math.abs(Math.cos(angle)));
     const coin =
-      scaleX < 0.22
-        ? `<ellipse cx="${centerX}" cy="${centerY}" rx="${radius * 0.22}" ry="${radius}" fill="#c78219" stroke="#ffe39a" stroke-width="5"/><path d="M ${centerX - 5} ${centerY - 48} v 96 M ${centerX + 5} ${centerY - 48} v 96" stroke="#f8d277" stroke-width="3" opacity=".75"/>`
-        : `<g transform="translate(${centerX} ${centerY}) scale(${scaleX} 1)"><circle r="${radius}" fill="url(#gold)" stroke="#fff0b6" stroke-width="6"/><circle r="${radius - 11}" fill="none" stroke="#9c5d13" stroke-width="3"/><text x="0" y="-4" text-anchor="middle" dominant-baseline="middle" font-family="Arial,sans-serif" font-size="25" font-weight="800" fill="#5e390e">${face}</text><text x="0" y="27" text-anchor="middle" font-family="Arial,sans-serif" font-size="27" font-weight="800" fill="#73470f">C</text></g>`;
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${renderWidth}" height="${renderHeight}" viewBox="0 0 ${width} ${height}"><defs><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0aa"/><stop offset=".45" stop-color="#edba50"/><stop offset="1" stop-color="#b97118"/></linearGradient></defs><rect width="100%" height="100%" rx="20" fill="#201217"/><ellipse cx="${centerX}" cy="182" rx="58" ry="9" fill="#090609" opacity=".75"/>${coin}<text x="${centerX}" y="207" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" letter-spacing="2" fill="#e7c995">FAIR 50 / 50 FLIP</text></svg>`;
+      scaleX < 0.24
+        ? `<ellipse cx="${centerX}" cy="${centerY}" rx="${radius * 0.2}" ry="${radius}" fill="url(#edge)" stroke="#ffe8a8" stroke-width="3"/><path d="M ${centerX - 8} ${centerY - 76} v 152 M ${centerX} ${centerY - 82} v 164 M ${centerX + 8} ${centerY - 76} v 152" stroke="#fff0b2" stroke-width="2" opacity=".78"/>`
+        : `<g transform="translate(${centerX} ${centerY}) scale(${scaleX} 1)"><circle r="${radius + 7}" fill="#70430f" stroke="#f6d784" stroke-width="3"/><circle r="${radius}" fill="url(#gold)" stroke="#fff2c3" stroke-width="3"/><circle r="${radius - 9}" fill="none" stroke="#986018" stroke-width="2"/><circle r="${radius - 15}" fill="none" stroke="#f8df98" stroke-width="1.5" opacity=".9"/><circle cx="0" cy="-${radius - 15}" r="3" fill="#fff2c3"/><circle cx="0" cy="${radius - 15}" r="3" fill="#fff2c3"/><text x="0" y="-25" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="800" letter-spacing="3" fill="#6e420e">${face}</text><text x="0" y="27" text-anchor="middle" dominant-baseline="middle" font-family="Georgia,serif" font-size="58" font-weight="800" fill="#74470f" stroke="#f8dc8c" stroke-width="1.2" paint-order="stroke">${face === 'HEADS' ? 'H' : 'T'}</text><text x="0" y="60" text-anchor="middle" font-family="Arial,sans-serif" font-size="8" font-weight="700" letter-spacing="2" fill="#68400e">COIN FLIP</text></g>`;
+    const streak = Math.sin(progress * Math.PI);
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${renderWidth}" height="${renderHeight}" viewBox="0 0 ${width} ${height}"><defs><radialGradient id="backdrop" cx="50%" cy="43%" r="74%"><stop offset="0" stop-color="#492832"/><stop offset=".58" stop-color="#26151f"/><stop offset="1" stop-color="#100d16"/></radialGradient><radialGradient id="halo"><stop offset="0" stop-color="#ffca62" stop-opacity=".26"/><stop offset="1" stop-color="#ffca62" stop-opacity="0"/></radialGradient><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff5c7"/><stop offset=".2" stop-color="#f5d276"/><stop offset=".48" stop-color="#bd781e"/><stop offset=".72" stop-color="#f4cd6a"/><stop offset="1" stop-color="#7c4a12"/></linearGradient><linearGradient id="edge" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#835014"/><stop offset=".5" stop-color="#ffe9a2"/><stop offset="1" stop-color="#8c5717"/></linearGradient></defs><rect width="100%" height="100%" rx="22" fill="url(#backdrop)"/><rect x="7" y="7" width="346" height="226" rx="18" fill="none" stroke="#785469" stroke-width="1.5"/><ellipse cx="${centerX}" cy="108" rx="142" ry="120" fill="url(#halo)" opacity="${streak.toFixed(2)}"/><path d="M 67 125 C 95 58 265 58 293 125" fill="none" stroke="#f1ca78" stroke-opacity="${(0.12 + 0.22 * streak).toFixed(2)}" stroke-width="2"/><path d="M 82 144 C 106 83 254 83 278 144" fill="none" stroke="#f8e6ad" stroke-opacity="${(0.08 + 0.14 * streak).toFixed(2)}" stroke-width="1.3"/><text x="${centerX}" y="34" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="800" letter-spacing="4" fill="#f5dfba">COIN FLIP</text><text x="${centerX}" y="54" text-anchor="middle" font-family="Arial,sans-serif" font-size="8" font-weight="600" letter-spacing="2" fill="#ba9baa">FAIR 50 / 50</text><ellipse cx="${centerX}" cy="218" rx="69" ry="10" fill="#09070c" opacity=".72"/><ellipse cx="${centerX}" cy="214" rx="54" ry="5" fill="#d7a54b" opacity=".12"/>${coin}<text x="${centerX}" y="229" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="600" letter-spacing="2" fill="#aa8798">SECURE RANDOM TOSS</text></svg>`;
     frames.push(await sharp(Buffer.from(svg)).png().toBuffer());
   }
 
   return sharp(frames, { join: { animated: true } })
     .gif({
       loop: 1,
-      delay: frames.map((_, index) => (index > 17 ? 130 : 65)),
+      delay: frames.map((_, index) => (index > 23 ? 120 : 70)),
       colours: 128,
       dither: 0.15,
       interFrameMaxError: 0,
@@ -551,37 +550,30 @@ export function installActivity(client, db) {
     return safeProbability > 0 ? 0.97 / safeProbability : 0;
   }
 
-  function minesComponents(id, game, disabled = false) {
-    const options = Array.from({ length: 25 }, (_, index) => index)
-      .filter((index) => !game.revealed.has(index))
-      .map((index) => ({
-        label: `Row ${Math.floor(index / 5) + 1} · Column ${(index % 5) + 1}`,
-        value: String(index),
-      }));
-    const rows = [];
-    if (options.length) {
-      rows.push(
-        new ActionRowBuilder().addComponents(
-          new StringSelectMenuBuilder()
-            .setCustomId(`mines:pick:${id}`)
-            .setPlaceholder('Choose a tile')
-            .setMinValues(1)
-            .setMaxValues(1)
-            .setDisabled(disabled)
-            .addOptions(options),
-        ),
-      );
-    }
-    rows.push(
+  function minesComponents(id, game, disabled = false, revealAllMines = false) {
+    return Array.from({ length: 5 }, (_, rowIndex) =>
       new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`mines:cash:${id}`)
-          .setLabel('Cash out')
-          .setStyle(ButtonStyle.Success)
-          .setDisabled(disabled),
+        Array.from({ length: 5 }, (_, columnIndex) => {
+          const index = rowIndex * 5 + columnIndex;
+          const state =
+            game.revealed.get(index) ||
+            (revealAllMines && game.minePositions.has(index) ? 'mine' : null);
+          const button = new ButtonBuilder()
+            .setCustomId(`mines:tile:${id}:${index}`)
+            .setLabel(String(index + 1))
+            .setStyle(
+              state === 'safe'
+                ? ButtonStyle.Success
+                : state === 'mine'
+                  ? ButtonStyle.Danger
+                  : ButtonStyle.Secondary,
+            )
+            .setDisabled(disabled || Boolean(state));
+          if (state) button.setEmoji(state === 'safe' ? '💎' : '💥');
+          return button;
+        }),
       ),
     );
-    return rows;
   }
 
   function minesEmbed(game, status = '') {
@@ -621,7 +613,7 @@ export function installActivity(client, db) {
       embeds: [minesEmbed(game, status)],
       files: [new AttachmentBuilder(image, { name: 'mines-board.gif' })],
       attachments: [],
-      components: status ? [] : minesComponents(id, game),
+      components: minesComponents(id, game, Boolean(status), revealAll),
       allowedMentions: { parse: [] },
     });
   }
@@ -692,7 +684,7 @@ export function installActivity(client, db) {
         embeds: [spinEmbed],
         ...(animation && { files: [new AttachmentBuilder(animation, { name: 'coin-flip.gif' })] }),
       });
-      if (animation) await new Promise((resolve) => setTimeout(resolve, 2050));
+      if (animation) await new Promise((resolve) => setTimeout(resolve, 3000));
       if (won) addPoints.run(4, interaction.user.id);
       const resultEmbed = new EmbedBuilder()
         .setColor(won ? 0x36c275 : 0xe34b4b)
@@ -863,7 +855,7 @@ export function installActivity(client, db) {
           content: 'The board could not be rendered, so your bet was refunded.',
         });
       }
-      return interaction.editReply({
+      const boardMessage = await interaction.editReply({
         embeds: [
           new EmbedBuilder()
             .setColor(0x8d7548)
@@ -876,6 +868,20 @@ export function installActivity(client, db) {
         files: [new AttachmentBuilder(image, { name: 'mines-board.gif' })],
         components: minesComponents(reservation.id, game),
         allowedMentions: { parse: [] },
+      });
+      game.channelId = boardMessage.channelId;
+      game.messageId = boardMessage.id;
+      return interaction.followUp({
+        content: 'Cash out whenever you want:',
+        components: [
+          new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`mines:cash:${reservation.id}`)
+              .setLabel('Cash out')
+              .setStyle(ButtonStyle.Success),
+          ),
+        ],
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -917,7 +923,7 @@ export function installActivity(client, db) {
         embeds: [spinEmbed],
         files: [new AttachmentBuilder(animation, { name: 'roulette-spin.gif' })],
       });
-      await new Promise((resolve) => setTimeout(resolve, 2850));
+      await new Promise((resolve) => setTimeout(resolve, 3100));
       const balance = settleBet(reservation.id, payout);
       const resultEmbed = new EmbedBuilder()
         .setColor(won ? 0x36c275 : 0xe34b4b)
@@ -933,8 +939,8 @@ export function installActivity(client, db) {
   });
 
   client.on(Events.InteractionCreate, async (interaction) => {
-    if (interaction.isStringSelectMenu() && interaction.customId.startsWith('mines:pick:')) {
-      const id = interaction.customId.split(':')[2];
+    if (interaction.isButton() && interaction.customId.startsWith('mines:tile:')) {
+      const [, , id, tileText] = interaction.customId.split(':');
       const game = minesGames.get(id);
       if (!game)
         return interaction.reply({
@@ -951,7 +957,7 @@ export function installActivity(client, db) {
           content: 'Your board is updating—try again in a moment.',
           flags: MessageFlags.Ephemeral,
         });
-      const tile = Number(interaction.values[0]);
+      const tile = Number(tileText);
       if (!Number.isInteger(tile) || tile < 0 || tile > 24 || game.revealed.has(tile))
         return interaction.reply({
           content: 'That tile is unavailable. Choose another one.',
@@ -1014,10 +1020,17 @@ export function installActivity(client, db) {
       const payout = Math.floor(game.bet * minesMultiplier(game));
       const balance = settleBet(id, payout);
       minesGames.delete(id);
+      const channel = await client.channels.fetch(game.channelId).catch(() => null);
+      const board = channel ? await channel.messages.fetch(game.messageId).catch(() => null) : null;
+      if (board)
+        await updateMinesBoard(
+          board,
+          game,
+          id,
+          `Cashed out **${payout} points**. Balance: **${balance} points**.`,
+        );
       return interaction.message.edit({
-        embeds: [
-          minesEmbed(game, `Cashed out **${payout} points**. Balance: **${balance} points**.`),
-        ],
+        content: `Cashed out **${payout} points**. Balance: **${balance} points**.`,
         components: [],
         allowedMentions: { parse: [] },
       });
