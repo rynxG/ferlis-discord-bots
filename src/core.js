@@ -383,6 +383,33 @@ export function moderationLanguage(content, reason = '') {
   ];
   return hits >= 2 || blockedReason(content || '', germanWords) ? 'de' : 'en';
 }
+export function detectChatLanguage(content) {
+  const words = new Set(
+    moderationText(content || '')
+      .split(/[^a-z]+/)
+      .filter(Boolean),
+  );
+  const germanHints = [
+    'ich', 'du', 'wir', 'ihr', 'nicht', 'bitte', 'danke', 'warum', 'was', 'wie', 'ist',
+    'sind', 'bin', 'bist', 'habe', 'hast', 'wurde', 'werden', 'kann', 'kannst', 'und',
+    'aber', 'oder', 'fur', 'mit', 'euch', 'mir', 'mich', 'mein', 'meine', 'dein', 'deine',
+    'einen', 'einem', 'hier', 'dort', 'mochte', 'mochtest', 'hilfe', 'wo', 'wann', 'wer',
+    'welche', 'konnen', 'der', 'die', 'das', 'ein', 'eine', 'einer', 'eines', 'auf', 'zu',
+    'von', 'noch', 'herunterladen', 'kaufen', 'kosten', 'brauche', 'brauchen',
+  ];
+  const englishHints = [
+    'the', 'and', 'you', 'your', 'how', 'what', 'where', 'when', 'why', 'who', 'which',
+    'can', 'could', 'would', 'do', 'does', 'is', 'are', 'help', 'need', 'please', 'thanks',
+    'thank', 'i', 'we', 'they', 'my', 'want', 'to', 'for', 'with', 'this', 'that', 'have',
+    'has', 'not', 'but', 'then', 'there', 'get', 'buy', 'price', 'download', 'a', 'an',
+    'was', 'were', 'it', 'of', 'in', 'on', 'at', 'from', 'hello', 'hi', 'hey',
+  ];
+  const german = germanHints.filter((word) => words.has(word)).length;
+  const english = englishHints.filter((word) => words.has(word)).length;
+  if (german >= 2 && german > english) return 'de';
+  if (english >= 2 && english > german) return 'en';
+  return null;
+}
 export function sanction(count) {
   return count < 3
     ? { days: 0, label: 'Warning' }

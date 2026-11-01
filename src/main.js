@@ -44,6 +44,7 @@ import {
   ticketOverwrites,
   moderationInput,
   moderationLanguage,
+  detectChatLanguage,
 } from './core.js';
 import { installCommunity } from './community.js';
 import { modCommands, installModeration, logCase } from './staff-moderation.js';
@@ -448,7 +449,38 @@ async function moderate(message, edited = false) {
       ? 'mass mentions'
       : null) ||
     spamReason;
-  if (!reason) return;
+  if (!reason) {
+    if (staffExempt) return;
+    const expected = expectedChatLanguage(message.channel);
+    const detected = expected ? detectChatLanguage(input.scan) : null;
+    if (!expected || !detected || expected === detected) return;
+    try {
+      await message.delete();
+    } catch {
+      await report(
+        partik,
+        `Jerry could not remove a wrong-language message ${message.id} in ${message.channelId}.`,
+      );
+      return;
+    }
+    const target = findLanguageChat(message.guild, detected);
+    const targetRef = target ? `<#${target.id}>` : detected === 'de' ? '#german-chat' : '#english-chat';
+    const dm =
+      detected === 'de'
+        ? `Bitte sende deutsche Nachrichten in ${targetRef}. In <#${message.channelId}> ist Englisch vorgesehen. Deine Nachricht wurde entfernt.`
+        : `Please send English messages in ${targetRef}. German is expected in <#${message.channelId}>. Your message was removed.`;
+    await message.author
+      .send({
+        embeds: [new EmbedBuilder().setColor(0xf1c40f).setDescription(dm)],
+        allowedMentions: { parse: [] },
+      })
+      .catch(() => {});
+    await report(
+      partik,
+      `Jerry removed a ${detected === 'de' ? 'German' : 'English'} message from ${message.author.id} in the ${expected === 'de' ? 'German' : 'English'} chat (no moderation strike).`,
+    );
+    return;
+  }
   try {
     await message.delete();
   } catch {
@@ -1199,6 +1231,35 @@ assistance.once(Events.ClientReady, async () => {
 const busy = new Set();
 const lastAnswer = new Map();
 const contentIntentWarnings = new Set();
+function expectedChatLanguage(channel) {
+  if (channel?.type !== ChannelType.GuildText) return null;
+  if ((channel.name || '').includes('🇩🇪')) return 'de';
+  const name = (channel.name || '').toLowerCase().replace(/[^a-z]/g, '');
+  if (name === 'english' || name.endsWith('englishchat')) return 'en';
+  if (
+    ['german', 'deutsch', 'de'].includes(name) ||
+    name.endsWith('germanchat') ||
+    name.endsWith('deutschchat') ||
+    name.endsWith('dechat')
+  )
+    return 'de';
+  return null;
+}
+function findLanguageChat(guild, language) {
+  return (
+    guild.channels.cache.find((channel) => {
+      if (channel.type !== ChannelType.GuildText) return false;
+      if (language === 'de' && (channel.name || '').includes('🇩🇪')) return true;
+      const name = (channel.name || '').toLowerCase().replace(/[^a-z]/g, '');
+      return language === 'de'
+        ? ['german', 'deutsch', 'de'].includes(name) ||
+            name.endsWith('germanchat') ||
+            name.endsWith('deutschchat') ||
+            name.endsWith('dechat')
+        : name === 'english' || name.endsWith('englishchat');
+    }) || null
+  );
+}
 function isPublicCommunityChat(channel) {
   return Boolean(
     channel.guildId === env.GUILD_ID &&
