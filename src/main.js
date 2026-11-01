@@ -450,7 +450,6 @@ async function moderate(message, edited = false) {
       : null) ||
     spamReason;
   if (!reason) {
-    if (staffExempt) return;
     const expected = expectedChatLanguage(message.channel);
     const detected = expected ? detectChatLanguage(input.scan) : null;
     if (!expected || !detected || expected === detected) return;
