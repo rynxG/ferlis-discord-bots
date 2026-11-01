@@ -55,6 +55,12 @@ import { supportLanguage } from './common-answers.js';
 import { activityCommands, installActivity } from './activity.js';
 
 const env = process.env;
+const jerryGambleGuildIds = new Set(
+  (env.JERRY_GAMBLE_GUILD_IDS || '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter((id) => id && id !== env.GUILD_ID),
+);
 const validate = process.argv.includes('--validate');
 if (!validate && !process.argv.includes('--worker')) process.exit(await supervise(env));
 const required = ['GUILD_ID', 'PARTIK_TOKEN', 'UTILITY_TOKEN', 'ASSISTANCE_TOKEN', 'ASSISTANCE_ID'];
@@ -243,6 +249,17 @@ function makeClient(name, commands, messageContent = false, members = false) {
         activities: [{ name: 'Chrisp Addon', type: 0 }],
       });
       await guild.commands.set(commands.map((c) => c.toJSON()));
+      if (name === 'Jerry') {
+        for (const guildId of jerryGambleGuildIds) {
+          try {
+            const gameGuild = await client.guilds.fetch(guildId);
+            await gameGuild.commands.set(activityCommands.map((c) => c.toJSON()));
+            console.log(`Jerry gambling commands installed in ${gameGuild.name}.`);
+          } catch (error) {
+            console.error(`Jerry gambling setup failed for guild ${guildId}: ${error.message}`);
+          }
+        }
+      }
       await applyBranding(client, name, guild, db, await serverInvite(guild)).catch((e) =>
         console.error(name + ' branding: ' + e.message),
       );
@@ -256,7 +273,12 @@ function makeClient(name, commands, messageContent = false, members = false) {
 }
 function onInteraction(client, handler) {
   client.on(Events.InteractionCreate, async (i) => {
-    if (i.guildId !== env.GUILD_ID) return;
+    const extraJerryGameCommand =
+      client === partik &&
+      jerryGambleGuildIds.has(i.guildId) &&
+      i.isChatInputCommand() &&
+      activityCommands.some((command) => command.name === i.commandName);
+    if (i.guildId !== env.GUILD_ID && !extraJerryGameCommand) return;
     try {
       await handler(i);
     } catch (err) {

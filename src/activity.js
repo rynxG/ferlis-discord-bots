@@ -443,6 +443,13 @@ export const activityCommands = [
 ];
 
 export function installActivity(client, db) {
+  const primaryGuildId = process.env.GUILD_ID;
+  const extraGameGuilds = new Set(
+    (process.env.JERRY_GAMBLE_GUILD_IDS || '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean),
+  );
   db.exec(`CREATE TABLE IF NOT EXISTS activity_users (
     user TEXT PRIMARY KEY,
     points INTEGER NOT NULL DEFAULT 0,
@@ -482,6 +489,11 @@ export function installActivity(client, db) {
   const ensureUser = db.prepare('INSERT OR IGNORE INTO activity_users(user) VALUES (?)');
   const getUser = db.prepare('SELECT * FROM activity_users WHERE user=?');
   const addPoints = db.prepare('UPDATE activity_users SET points=points+? WHERE user=?');
+  const accountKey = (interaction) =>
+    interaction.guildId === primaryGuildId
+      ? interaction.user.id
+      : `${interaction.guildId}:${interaction.user.id}`;
+  const mentionUser = (key) => `<@${key.includes(':') ? key.slice(key.indexOf(':') + 1) : key}>`;
   const blackjacks = new Map();
   const minesGames = new Map();
   const gameTimeouts = new Map();
@@ -811,10 +823,17 @@ export function installActivity(client, db) {
   }
 
   client.on(Events.InteractionCreate, async (interaction) => {
-    if (!interaction.guildId || !interaction.isChatInputCommand()) return;
+    if (
+      !interaction.guildId ||
+      (interaction.guildId !== primaryGuildId && !extraGameGuilds.has(interaction.guildId)) ||
+      !interaction.isChatInputCommand()
+    )
+      return;
+    if (!activityCommands.some((entry) => entry.name === interaction.commandName)) return;
+    const user = accountKey(interaction);
     if (interaction.commandName === 'daily') {
-      ensureUser.run(interaction.user.id);
-      const current = getUser.get(interaction.user.id);
+      ensureUser.run(user);
+      const current = getUser.get(user);
       if (current.last_daily === today()) {
         return interaction.reply({
           content: `You already claimed today’s reward. Your streak is **${current.streak} days**—come back tomorrow!`,
@@ -825,7 +844,7 @@ export function installActivity(client, db) {
       const reward = 10 + Math.min(streak, 7) + randomInt(6);
       db.prepare(
         'UPDATE activity_users SET points=points+?, streak=?, last_daily=? WHERE user=?',
-      ).run(reward, streak, today(), interaction.user.id);
+      ).run(reward, streak, today(), user);
       return interaction.reply({
         embeds: [
           new EmbedBuilder()
@@ -841,9 +860,9 @@ export function installActivity(client, db) {
     }
 
     if (interaction.commandName === 'coinflip') {
-      ensureUser.run(interaction.user.id);
+      ensureUser.run(user);
       const gambleLimit = gambleLimitFor(interaction);
-      if (!recordGamble(interaction.user.id, gambleLimit)) {
+      if (!recordGamble(user, gambleLimit)) {
         return interaction.reply({
           content: gambleLimitMessage(gambleLimit),
         });
@@ -868,7 +887,7 @@ export function installActivity(client, db) {
         ...(animation && { files: [new AttachmentBuilder(animation, { name: 'coin-flip.gif' })] }),
       });
       if (animation) await new Promise((resolve) => setTimeout(resolve, 3000));
-      if (won) addPoints.run(4, interaction.user.id);
+      if (won) addPoints.run(4, user);
       const resultEmbed = new EmbedBuilder()
         .setColor(won ? 0x36c275 : 0xe34b4b)
         .setTitle(won ? 'Nice guess!' : 'So close!')
@@ -892,6 +911,7 @@ export function installActivity(client, db) {
         answer: source.answer,
         correctIndex,
         answered: false,
+        guildId: interaction.guildId,
       });
       setTimeout(() => pending.delete(key), 2 * 60 * 1000).unref();
       const row = new ActionRowBuilder().addComponents(
@@ -914,15 +934,23 @@ export function installActivity(client, db) {
     }
 
     if (interaction.commandName === 'leaderboard') {
-      const leaders = db
-        .prepare(
-          'SELECT user, points, trivia_wins, streak FROM activity_users WHERE points>0 ORDER BY points DESC, trivia_wins DESC LIMIT 10',
-        )
-        .all();
+      const leaders =
+        interaction.guildId === primaryGuildId
+          ? db
+              .prepare(
+                `SELECT user, points, trivia_wins, streak FROM activity_users WHERE points>0 AND user NOT LIKE '%:%' ORDER BY points DESC, trivia_wins DESC LIMIT 10`,
+              )
+              .all()
+          : db
+              .prepare(
+                `SELECT user, points, trivia_wins, streak FROM activity_users WHERE points>0 AND user LIKE ? ORDER BY points DESC, trivia_wins DESC LIMIT 10`,
+              )
+              .all(`${interaction.guildId}:%`);
       const description = leaders.length
         ? leaders
             .map(
-              (entry, index) => `**${index + 1}.** <@${entry.user}> — **${entry.points}** points`,
+              (entry, index) =>
+                `**${index + 1}.** ${mentionUser(entry.user)} — **${entry.points}** points`,
             )
             .join('\n')
         : 'No scores yet. Claim **/daily** or start a round with **/trivia**!';
@@ -939,11 +967,11 @@ export function installActivity(client, db) {
 
     if (interaction.commandName === 'blackjack') {
       const bet = interaction.options.getInteger('bet', true);
-      const reservation = reserveBet(interaction.user.id, bet, 'blackjack');
+      const reservation = reserveBet(user, bet, 'blackjack');
       if (reservation.error)
         return interaction.reply({ content: reservation.error, flags: MessageFlags.Ephemeral });
       const gambleLimit = gambleLimitFor(interaction);
-      if (!recordGamble(interaction.user.id, gambleLimit)) {
+      if (!recordGamble(user, gambleLimit)) {
         settleBet(reservation.id, bet);
         return interaction.reply({
           content: gambleLimitMessage(gambleLimit, true),
@@ -951,8 +979,9 @@ export function installActivity(client, db) {
       }
       const deck = makeDeck();
       const game = {
-        owner: interaction.user.id,
-        lastPlayer: interaction.user.id,
+        owner: user,
+        lastPlayer: user,
+        guildId: interaction.guildId,
         bet,
         deck,
         player: [deck.pop(), deck.pop()],
@@ -1024,11 +1053,11 @@ export function installActivity(client, db) {
     if (interaction.commandName === 'mines') {
       const bet = interaction.options.getInteger('bet', true);
       const minesCount = interaction.options.getInteger('mines', true);
-      const reservation = reserveBet(interaction.user.id, bet, 'mines');
+      const reservation = reserveBet(user, bet, 'mines');
       if (reservation.error)
         return interaction.reply({ content: reservation.error, flags: MessageFlags.Ephemeral });
       const gambleLimit = gambleLimitFor(interaction);
-      if (!recordGamble(interaction.user.id, gambleLimit)) {
+      if (!recordGamble(user, gambleLimit)) {
         settleBet(reservation.id, bet);
         return interaction.reply({
           content: gambleLimitMessage(gambleLimit, true),
@@ -1039,7 +1068,8 @@ export function installActivity(client, db) {
         shuffle(Array.from({ length: 25 }, (_, index) => index)).slice(0, minesCount),
       );
       const game = {
-        owner: interaction.user.id,
+        owner: user,
+        guildId: interaction.guildId,
         bet,
         minesCount,
         minePositions,
@@ -1092,11 +1122,11 @@ export function installActivity(client, db) {
     if (interaction.commandName === 'roulette') {
       const bet = interaction.options.getInteger('bet', true);
       const target = interaction.options.getString('color', true);
-      const reservation = reserveBet(interaction.user.id, bet, 'roulette');
+      const reservation = reserveBet(user, bet, 'roulette');
       if (reservation.error)
         return interaction.reply({ content: reservation.error, flags: MessageFlags.Ephemeral });
       const gambleLimit = gambleLimitFor(interaction);
-      if (!recordGamble(interaction.user.id, gambleLimit)) {
+      if (!recordGamble(user, gambleLimit)) {
         settleBet(reservation.id, bet);
         return interaction.reply({
           content: gambleLimitMessage(gambleLimit, true),
@@ -1152,7 +1182,7 @@ export function installActivity(client, db) {
           content: 'That Mines round has ended. Start another with **/mines**.',
           flags: MessageFlags.Ephemeral,
         });
-      if (interaction.user.id !== game.owner)
+      if (game.guildId !== interaction.guildId || accountKey(interaction) !== game.owner)
         return interaction.reply({
           content: 'This Mines board belongs to another player.',
           flags: MessageFlags.Ephemeral,
@@ -1210,7 +1240,7 @@ export function installActivity(client, db) {
           content: 'That Mines round has ended. Start another with **/mines**.',
           flags: MessageFlags.Ephemeral,
         });
-      if (interaction.user.id !== game.owner)
+      if (game.guildId !== interaction.guildId || accountKey(interaction) !== game.owner)
         return interaction.reply({
           content: 'This Mines board belongs to another player.',
           flags: MessageFlags.Ephemeral,
@@ -1248,7 +1278,7 @@ export function installActivity(client, db) {
           content: 'That blackjack hand ended. Start a new one with **/blackjack**.',
           flags: MessageFlags.Ephemeral,
         });
-      if (interaction.user.id !== game.owner)
+      if (game.guildId !== interaction.guildId || accountKey(interaction) !== game.owner)
         return interaction.reply({
           content: 'This hand belongs to another player.',
           flags: MessageFlags.Ephemeral,
@@ -1259,7 +1289,7 @@ export function installActivity(client, db) {
           flags: MessageFlags.Ephemeral,
         });
       game.busy = true;
-      game.lastPlayer = interaction.user.id;
+      game.lastPlayer = accountKey(interaction);
       await interaction.deferUpdate();
       if (action === 'hit') {
         game.player.push(game.deck.pop());
@@ -1297,7 +1327,7 @@ export function installActivity(client, db) {
     if (!interaction.isButton() || !interaction.customId.startsWith('trivia:')) return;
     const [, key, picked] = interaction.customId.split(':');
     const round = pending.get(key);
-    if (!round || round.answered) {
+    if (!round || round.guildId !== interaction.guildId || round.answered) {
       return interaction.reply({
         content: 'That trivia round has ended. Start another with **/trivia**!',
         flags: MessageFlags.Ephemeral,
@@ -1311,11 +1341,10 @@ export function installActivity(client, db) {
     }
     round.answered = true;
     pending.delete(key);
-    ensureUser.run(interaction.user.id);
-    addPoints.run(15, interaction.user.id);
-    db.prepare('UPDATE activity_users SET trivia_wins=trivia_wins+1 WHERE user=?').run(
-      interaction.user.id,
-    );
+    const user = accountKey(interaction);
+    ensureUser.run(user);
+    addPoints.run(15, user);
+    db.prepare('UPDATE activity_users SET trivia_wins=trivia_wins+1 WHERE user=?').run(user);
     return interaction.update({
       embeds: [
         new EmbedBuilder()
