@@ -1326,6 +1326,45 @@ const busy = new Set();
 const lastAnswer = new Map();
 const contentIntentWarnings = new Set();
 const translateCooldown = new Map();
+function splitTranslationText(text, maxBytes = 450) {
+  const chunks = [];
+  let chunk = '';
+  const parts = text.match(/\S+\s*|\s+/gu) || [text];
+  for (const part of parts) {
+    if (Buffer.byteLength(chunk + part, 'utf8') <= maxBytes) {
+      chunk += part;
+      continue;
+    }
+    if (chunk) chunks.push(chunk);
+    chunk = '';
+    for (const character of part) {
+      if (Buffer.byteLength(chunk + character, 'utf8') > maxBytes) {
+        chunks.push(chunk);
+        chunk = '';
+      }
+      chunk += character;
+    }
+  }
+  if (chunk) chunks.push(chunk);
+  return chunks;
+}
+async function translateWithMyMemory(text, source, target) {
+  const translations = [];
+  for (const chunk of splitTranslationText(text)) {
+    const url = new URL('https://api.mymemory.translated.net/get');
+    url.searchParams.set('q', chunk);
+    url.searchParams.set('langpair', `${source}|${target}`);
+    const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    if (!response.ok) throw new Error(`MyMemory returned HTTP ${response.status}.`);
+    const result = await response.json();
+    const translated = result.responseData?.translatedText?.trim();
+    if (result.responseStatus !== 200 || !translated)
+      throw new Error(result.responseDetails || 'MyMemory returned no translation.');
+    const trailingWhitespace = chunk.match(/\s+$/u)?.[0] || '';
+    translations.push(`${translated}${trailingWhitespace}`);
+  }
+  return translations.join('').trim();
+}
 function expectedChatLanguage(channel) {
   if (channel?.type !== ChannelType.GuildText) return null;
   if ((channel.name || '').includes('🇩🇪')) return 'de';
@@ -1485,36 +1524,45 @@ onInteraction(assistance, async (i) => {
     if (source === target) return i.reply(ephemeral('Choose two different languages.'));
     await i.deferReply();
     try {
-      const endpoints = [
-        env.LIBRETRANSLATE_URL || 'https://translate.fedilab.app/translate',
-        'https://translate.cutie.dating/translate',
-      ];
       let translation = '';
       let lastTranslationError;
-      for (const endpointUrl of [...new Set(endpoints)]) {
-        try {
-          const endpoint = new URL(endpointUrl);
-          if (endpoint.protocol !== 'https:' || !endpoint.pathname.endsWith('/translate'))
-            throw new Error('Invalid translation endpoint configuration.');
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            signal: AbortSignal.timeout(10000),
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              q: text,
-              source,
-              target,
-              format: 'text',
-              ...(env.LIBRETRANSLATE_API_KEY && { api_key: env.LIBRETRANSLATE_API_KEY }),
-            }),
-          });
-          if (!response.ok) throw new Error(`Translation service returned ${response.status}.`);
-          translation = (await response.json()).translatedText?.trim() || '';
-          if (!translation) throw new Error('Translation service returned an empty result.');
-          break;
-        } catch (error) {
-          lastTranslationError = error;
-          console.warn(`Translation endpoint failed (${endpointUrl}): ${error.message}`);
+      try {
+        translation = await translateWithMyMemory(text, source, target);
+      } catch (error) {
+        lastTranslationError = error;
+        console.warn(`MyMemory translation failed: ${error.message}`);
+      }
+      if (!translation) {
+        const endpoints = [
+          env.LIBRETRANSLATE_URL,
+          'https://translate.fedilab.app/translate',
+          'https://translate.cutie.dating/translate',
+        ].filter(Boolean);
+        for (const endpointUrl of [...new Set(endpoints)]) {
+          try {
+            const endpoint = new URL(endpointUrl);
+            if (endpoint.protocol !== 'https:' || !endpoint.pathname.endsWith('/translate'))
+              throw new Error('Invalid translation endpoint configuration.');
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              signal: AbortSignal.timeout(10000),
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                q: text,
+                source,
+                target,
+                format: 'text',
+                ...(env.LIBRETRANSLATE_API_KEY && { api_key: env.LIBRETRANSLATE_API_KEY }),
+              }),
+            });
+            if (!response.ok) throw new Error(`Translation service returned ${response.status}.`);
+            translation = (await response.json()).translatedText?.trim() || '';
+            if (!translation) throw new Error('Translation service returned an empty result.');
+            break;
+          } catch (error) {
+            lastTranslationError = error;
+            console.warn(`LibreTranslate endpoint failed (${endpointUrl}): ${error.message}`);
+          }
         }
       }
       if (!translation)
