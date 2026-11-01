@@ -464,16 +464,16 @@ async function moderate(message, edited = false) {
     }
     const target = findLanguageChat(message.guild, detected);
     const targetRef = target ? `<#${target.id}>` : detected === 'de' ? '#german-chat' : '#english-chat';
-    const dm =
+    const reminder =
       detected === 'de'
-        ? `Bitte sende deutsche Nachrichten in ${targetRef}. In <#${message.channelId}> ist Englisch vorgesehen. Deine Nachricht wurde entfernt.`
-        : `Please send English messages in ${targetRef}. German is expected in <#${message.channelId}>. Your message was removed.`;
-    await message.author
+        ? `<@${message.author.id}> please go to ${targetRef} to talk in dutch, Thank you!`
+        : `<@${message.author.id}> please go to ${targetRef} to talk in English, thank you!`;
+    await message.channel
       .send({
-        embeds: [new EmbedBuilder().setColor(0xf1c40f).setDescription(dm)],
-        allowedMentions: { parse: [] },
+        content: reminder,
+        allowedMentions: { users: [message.author.id], parse: [] },
       })
-      .catch(() => {});
+      .catch((e) => report(partik, `Could not send language reminder in ${message.channelId}: ${e.message}`));
     await report(
       partik,
       `Jerry removed a ${detected === 'de' ? 'German' : 'English'} message from ${message.author.id} in the ${expected === 'de' ? 'German' : 'English'} chat (no moderation strike).`,
