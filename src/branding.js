@@ -25,7 +25,7 @@ export async function applyBranding(client, role, guild, db, invite) {
     role === 'Jerry'
       ? [
           ['avatar', 'jerry.png'],
-          ['banner', 'felris-banner.png'],
+          ['banner', 'chrisp-banner.png'],
         ]
       : [
           ['avatar', 'chrisp-avatar.png'],
