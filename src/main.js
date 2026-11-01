@@ -1269,7 +1269,7 @@ const assistance = makeClient(
         .setMaxLength(2000)
         .setRequired(true),
     ),
-    command('translate', 'Translate text privately in this server')
+    command('translate', 'Translate text and post the result in this channel')
       .addStringOption((o) =>
         o
           .setName('from')
@@ -1295,7 +1295,7 @@ const assistance = makeClient(
       .addStringOption((o) =>
         o
           .setName('text')
-          .setDescription('Text to translate (sent privately to you)')
+          .setDescription('Text to translate; result will be public in this channel')
           .setRequired(true)
           .setMaxLength(1500),
       ),
@@ -1483,7 +1483,7 @@ onInteraction(assistance, async (i) => {
     const target = i.options.getString('to', true);
     const text = i.options.getString('text', true).trim();
     if (source === target) return i.reply(ephemeral('Choose two different languages.'));
-    await i.deferReply({ flags: MessageFlags.Ephemeral });
+    await i.deferReply();
     try {
       const endpoints = [
         env.LIBRETRANSLATE_URL || 'https://translate.fedilab.app/translate',
@@ -1525,7 +1525,7 @@ onInteraction(assistance, async (i) => {
         allowedMentions: { parse: [] },
       });
     } catch (error) {
-      console.error('Private translation failed:', error.message);
+      console.error('Public translation failed:', error.message);
       return i.editReply(
         'Translation is temporarily unavailable. Please try again in a little while.',
       );
