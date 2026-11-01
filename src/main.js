@@ -1366,6 +1366,12 @@ function isPublicCommunityChat(channel) {
 function isCommunityHelpQuestion(content) {
   const text = content.replace(/<@!?\d+>/g, '').trim();
   if (!text) return false;
+  if (
+    /^(?:was\s+geht|wie\s+geht(?:'s|\s+es)|what'?s\s+up|how'?s\s+it\s+going|sup|yo|hey|hi|hallo|moin)\b/i.test(
+      text,
+    )
+  )
+    return false;
   if (/[?？]/.test(text)) return true;
 
   // Only treat clear question forms or explicit requests for help as questions.
@@ -1479,24 +1485,40 @@ onInteraction(assistance, async (i) => {
     if (source === target) return i.reply(ephemeral('Choose two different languages.'));
     await i.deferReply({ flags: MessageFlags.Ephemeral });
     try {
-      const endpoint = new URL(env.LIBRETRANSLATE_URL || 'https://translate.fedilab.app/translate');
-      if (endpoint.protocol !== 'https:' || !endpoint.pathname.endsWith('/translate'))
-        throw new Error('Invalid translation endpoint configuration.');
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        signal: AbortSignal.timeout(20000),
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          q: text,
-          source,
-          target,
-          format: 'text',
-          ...(env.LIBRETRANSLATE_API_KEY && { api_key: env.LIBRETRANSLATE_API_KEY }),
-        }),
-      });
-      if (!response.ok) throw new Error(`Translation service returned ${response.status}.`);
-      const translation = (await response.json()).translatedText?.trim();
-      if (!translation) throw new Error('Translation service returned an empty result.');
+      const endpoints = [
+        env.LIBRETRANSLATE_URL || 'https://translate.fedilab.app/translate',
+        'https://translate.cutie.dating/translate',
+      ];
+      let translation = '';
+      let lastTranslationError;
+      for (const endpointUrl of [...new Set(endpoints)]) {
+        try {
+          const endpoint = new URL(endpointUrl);
+          if (endpoint.protocol !== 'https:' || !endpoint.pathname.endsWith('/translate'))
+            throw new Error('Invalid translation endpoint configuration.');
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            signal: AbortSignal.timeout(10000),
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              q: text,
+              source,
+              target,
+              format: 'text',
+              ...(env.LIBRETRANSLATE_API_KEY && { api_key: env.LIBRETRANSLATE_API_KEY }),
+            }),
+          });
+          if (!response.ok) throw new Error(`Translation service returned ${response.status}.`);
+          translation = (await response.json()).translatedText?.trim() || '';
+          if (!translation) throw new Error('Translation service returned an empty result.');
+          break;
+        } catch (error) {
+          lastTranslationError = error;
+          console.warn(`Translation endpoint failed (${endpointUrl}): ${error.message}`);
+        }
+      }
+      if (!translation)
+        throw lastTranslationError || new Error('No translation endpoint available.');
       const names = { en: 'English', de: 'German', nl: 'Dutch' };
       return i.editReply({
         content: `**${names[source]} → ${names[target]}**\n${translation.slice(0, 1800)}`,
