@@ -254,7 +254,12 @@ function makeClient(name, commands, messageContent = false, members = false) {
         status: name === 'Jerry' ? 'online' : 'idle',
         activities: [{ name: 'Chrisp Addon', type: 0 }],
       });
-      await guild.commands.set(commands.map((c) => c.toJSON()));
+      const globalCommands = await client.application.commands.fetch();
+      const helpCommand = command('help', 'Show commands');
+      const existingHelp = globalCommands.find((entry) => entry.name === 'help');
+      if (existingHelp) await existingHelp.edit(helpCommand.toJSON());
+      else await client.application.commands.create(helpCommand.toJSON());
+      await guild.commands.set(commands.filter((entry) => name !== 'Ferlis Support' || entry.name !== 'translate').map((c) => c.toJSON()));
       if (name === 'Jerry') {
         for (const guildId of jerryGambleGuildIds) {
           try {
@@ -293,8 +298,11 @@ function onInteraction(client, handler) {
       jerryGambleGuildIds.has(i.guildId) &&
       i.isChatInputCommand() &&
       activityCommands.some((command) => command.name === i.commandName);
-    if (i.guildId !== env.GUILD_ID && !extraJerryGameCommand) return;
+    const isGlobalHelp = i.isChatInputCommand() && i.commandName === 'help';
+    if (i.guildId !== env.GUILD_ID && !extraJerryGameCommand && !isGlobalHelp) return;
     try {
+      if (isGlobalHelp)
+        return await i.reply(ephemeral('Type / to see commands available for this bot in this server.'));
       await handler(i);
     } catch (err) {
       console.error('Interaction failed:', err.name, err.code || '', err.message);
@@ -672,6 +680,35 @@ const utility = makeClient(
         o.setName('anonymous').setDescription('Hide your name from the public post (default: yes)'),
       ),
     command('download', 'Get the client download after the server-tag hold'),
+    command('translate', 'Translate with MyMemory; the result is posted publicly')
+      .addStringOption((o) =>
+        o
+          .setName('from')
+          .setDescription('Language of the original text')
+          .setRequired(true)
+          .addChoices(
+            { name: 'English', value: 'en' },
+            { name: 'German', value: 'de' },
+            { name: 'Dutch', value: 'nl' },
+          ),
+      )
+      .addStringOption((o) =>
+        o
+          .setName('to')
+          .setDescription('Language to translate into')
+          .setRequired(true)
+          .addChoices(
+            { name: 'English', value: 'en' },
+            { name: 'German', value: 'de' },
+            { name: 'Dutch', value: 'nl' },
+          ),
+      )
+      .addStringOption((o) =>
+        o
+          .setName('text')
+          .setDescription('Sent to MyMemory; translated result is public in this channel')
+          .setRequired(true)
+          .setMaxLength(1500),
   ],
   true,
 );
@@ -966,6 +1003,7 @@ async function closeTicket(i) {
   await i.editReply('Ticket closed and locked.');
 }
 onInteraction(utility, async (i) => {
+  if (i.isChatInputCommand() && i.commandName === 'translate') return handleTranslate(i);
   if (i.isChatInputCommand() && i.commandName === 'download') {
     await i.deferReply({ flags: MessageFlags.Ephemeral });
     const member = await i.guild.members.fetch(i.user.id);
@@ -1269,36 +1307,7 @@ const assistance = makeClient(
         .setMaxLength(2000)
         .setRequired(true),
     ),
-    command('translate', 'Translate with MyMemory; the result is posted publicly')
-      .addStringOption((o) =>
-        o
-          .setName('from')
-          .setDescription('Language of the original text')
-          .setRequired(true)
-          .addChoices(
-            { name: 'English', value: 'en' },
-            { name: 'German', value: 'de' },
-            { name: 'Dutch', value: 'nl' },
-          ),
-      )
-      .addStringOption((o) =>
-        o
-          .setName('to')
-          .setDescription('Language to translate into')
-          .setRequired(true)
-          .addChoices(
-            { name: 'English', value: 'en' },
-            { name: 'German', value: 'de' },
-            { name: 'Dutch', value: 'nl' },
-          ),
-      )
-      .addStringOption((o) =>
-        o
-          .setName('text')
-          .setDescription('Sent to MyMemory; translated result is public in this channel')
-          .setRequired(true)
-          .setMaxLength(1500),
-      ),
+
   ],
   true,
 );
@@ -1326,6 +1335,73 @@ const busy = new Set();
 const lastAnswer = new Map();
 const contentIntentWarnings = new Set();
 const translateCooldown = new Map();
+async function handleTranslate(i) {
+    const lastRequest = translateCooldown.get(i.user.id) || 0;
+    if (Date.now() - lastRequest < 4000)
+      return i.reply(ephemeral('Please wait a few seconds before translating again.'));
+    translateCooldown.set(i.user.id, Date.now());
+    const source = i.options.getString('from', true);
+    const target = i.options.getString('to', true);
+    const text = i.options.getString('text', true).trim();
+    if (source === target) return i.reply(ephemeral('Choose two different languages.'));
+    await i.deferReply();
+    try {
+      let translation = '';
+      let lastTranslationError;
+      try {
+        translation = await translateWithMyMemory(text, source, target);
+      } catch (error) {
+        lastTranslationError = error;
+        console.warn(`MyMemory translation failed: ${error.message}`);
+      }
+      if (!translation) {
+        const endpoints = [
+          env.LIBRETRANSLATE_URL,
+          'https://translate.fedilab.app/translate',
+          'https://translate.cutie.dating/translate',
+        ].filter(Boolean);
+        for (const endpointUrl of [...new Set(endpoints)]) {
+          try {
+            const endpoint = new URL(endpointUrl);
+            if (endpoint.protocol !== 'https:' || !endpoint.pathname.endsWith('/translate'))
+              throw new Error('Invalid translation endpoint configuration.');
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              signal: AbortSignal.timeout(10000),
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                q: text,
+                source,
+                target,
+                format: 'text',
+                ...(env.LIBRETRANSLATE_API_KEY && { api_key: env.LIBRETRANSLATE_API_KEY }),
+              }),
+            });
+            if (!response.ok) throw new Error(`Translation service returned ${response.status}.`);
+            translation = (await response.json()).translatedText?.trim() || '';
+            if (!translation) throw new Error('Translation service returned an empty result.');
+            break;
+          } catch (error) {
+            lastTranslationError = error;
+            console.warn(`LibreTranslate endpoint failed (${endpointUrl}): ${error.message}`);
+          }
+        }
+      }
+      if (!translation)
+        throw lastTranslationError || new Error('No translation endpoint available.');
+      const names = { en: 'English', de: 'German', nl: 'Dutch' };
+      return i.editReply({
+        content: `**${names[source]} → ${names[target]}**\n${translation.slice(0, 1800)}`,
+        allowedMentions: { parse: [] },
+      });
+    } catch (error) {
+      console.error('Public translation failed:', error.message);
+      return i.editReply(
+        'Translation is temporarily unavailable. Please try again in a little while.',
+      );
+    }
+}
+ 
 function splitTranslationText(text, maxBytes = 450) {
   const chunks = [];
   let chunk = '';
@@ -1513,72 +1589,7 @@ onInteraction(assistance, async (i) => {
       .run(i.options.getInteger('id', true));
     return i.reply(ephemeral(result.changes ? 'Answer removed.' : 'Knowledge ID not found.'));
   }
-  if (i.commandName === 'translate') {
-    const lastRequest = translateCooldown.get(i.user.id) || 0;
-    if (Date.now() - lastRequest < 4000)
-      return i.reply(ephemeral('Please wait a few seconds before translating again.'));
-    translateCooldown.set(i.user.id, Date.now());
-    const source = i.options.getString('from', true);
-    const target = i.options.getString('to', true);
-    const text = i.options.getString('text', true).trim();
-    if (source === target) return i.reply(ephemeral('Choose two different languages.'));
-    await i.deferReply();
-    try {
-      let translation = '';
-      let lastTranslationError;
-      try {
-        translation = await translateWithMyMemory(text, source, target);
-      } catch (error) {
-        lastTranslationError = error;
-        console.warn(`MyMemory translation failed: ${error.message}`);
-      }
-      if (!translation) {
-        const endpoints = [
-          env.LIBRETRANSLATE_URL,
-          'https://translate.fedilab.app/translate',
-          'https://translate.cutie.dating/translate',
-        ].filter(Boolean);
-        for (const endpointUrl of [...new Set(endpoints)]) {
-          try {
-            const endpoint = new URL(endpointUrl);
-            if (endpoint.protocol !== 'https:' || !endpoint.pathname.endsWith('/translate'))
-              throw new Error('Invalid translation endpoint configuration.');
-            const response = await fetch(endpoint, {
-              method: 'POST',
-              signal: AbortSignal.timeout(10000),
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                q: text,
-                source,
-                target,
-                format: 'text',
-                ...(env.LIBRETRANSLATE_API_KEY && { api_key: env.LIBRETRANSLATE_API_KEY }),
-              }),
-            });
-            if (!response.ok) throw new Error(`Translation service returned ${response.status}.`);
-            translation = (await response.json()).translatedText?.trim() || '';
-            if (!translation) throw new Error('Translation service returned an empty result.');
-            break;
-          } catch (error) {
-            lastTranslationError = error;
-            console.warn(`LibreTranslate endpoint failed (${endpointUrl}): ${error.message}`);
-          }
-        }
-      }
-      if (!translation)
-        throw lastTranslationError || new Error('No translation endpoint available.');
-      const names = { en: 'English', de: 'German', nl: 'Dutch' };
-      return i.editReply({
-        content: `**${names[source]} → ${names[target]}**\n${translation.slice(0, 1800)}`,
-        allowedMentions: { parse: [] },
-      });
-    } catch (error) {
-      console.error('Public translation failed:', error.message);
-      return i.editReply(
-        'Translation is temporarily unavailable. Please try again in a little while.',
-      );
-    }
-  }
+
   const row = ticket(i.channelId);
   if (!row || row.state !== 'open')
     return i.reply(ephemeral('Use this command inside an open support ticket.'));
