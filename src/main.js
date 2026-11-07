@@ -233,7 +233,7 @@ function makeClient(name, commands, messageContent = false, members = false) {
     role: name,
     commands: commands.map((c) => c.toJSON()),
   });
-  const client = new Client({
+  const client = new Client({ ...(name === 'Jerry' ? { ws: { identifyProperties: { os: 'Android', browser: 'Discord Android', device: 'Discord Android' } } } : {}),
     intents: [
       I.Guilds,
       I.GuildMessages,
