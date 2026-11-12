@@ -55,8 +55,8 @@ import { supportLanguage } from './common-answers.js';
 import { activityCommands, installActivity } from './activity.js';
 
 const env = process.env;
-const jerryGambleGuildIds = new Set(
-  (env.JERRY_GAMBLE_GUILD_IDS || '')
+const jerryActivityGuildIds = new Set(
+  (env.JERRY_ACTIVITY_GUILD_IDS || env.JERRY_GAMBLE_GUILD_IDS || env.UTILITY_ACTIVITY_GUILD_IDS || '')
     .split(',')
     .map((id) => id.trim())
     .filter((id) => id && id !== env.GUILD_ID),
@@ -65,7 +65,7 @@ const jerryLeaveGuildIds = new Set(
   (env.JERRY_LEAVE_GUILD_IDS || '')
     .split(',')
     .map((id) => id.trim())
-    .filter((id) => id && id !== env.GUILD_ID && !jerryGambleGuildIds.has(id)),
+    .filter((id) => id && id !== env.GUILD_ID && !jerryActivityGuildIds.has(id)),
 );
 const validate = process.argv.includes('--validate');
 if (!validate && !process.argv.includes('--worker')) process.exit(await supervise(env));
@@ -183,27 +183,27 @@ async function report(client, text) {
   }
 }
 function germanModerationReason(reason) {
-  if (/prohibited language/i.test(reason)) return 'unzulässige Sprache';
+  if (/prohibited language/i.test(reason)) return 'unzulÃ¤ssige Sprache';
   if (/unapproved link|advertisement|advertising link/i.test(reason))
     return 'nicht genehmigter Link oder Werbung';
   if (/spam|repeated messages/i.test(reason)) return 'Spam oder wiederholte Nachrichten';
-  if (/mass.*mention|mention/i.test(reason)) return 'zu viele Erwähnungen';
-  if (/executable|script uploaded/i.test(reason)) return 'eine ausführbare Datei oder ein Skript';
+  if (/mass.*mention|mention/i.test(reason)) return 'zu viele ErwÃ¤hnungen';
+  if (/executable|script uploaded/i.test(reason)) return 'eine ausfÃ¼hrbare Datei oder ein Skript';
   if (/image|embed|sexual|violence|harassment|moderation/i.test(reason))
     return 'unangemessener Bild- oder Einbettungsinhalt';
   if (/permanent mute/i.test(reason)) return 'eine bestehende dauerhafte Stummschaltung';
-  return 'ein Verstoß gegen die Serverregeln';
+  return 'ein VerstoÃŸ gegen die Serverregeln';
 }
 function germanModerationAction(offence, outcome) {
   if (/cannot be timed out/i.test(outcome))
-    return 'Warnung — Discord kann dieses Konto nicht stummschalten';
+    return 'Warnung â€” Discord kann dieses Konto nicht stummschalten';
   if (/could not apply/i.test(outcome))
     return 'Die Stummschaltung konnte nicht angewendet werden; das Team wurde informiert';
   if (/permanent mute/i.test(outcome))
     return 'Dauerhafte Stummschaltung bis zur Aufhebung durch das Team';
-  if (/7-day mute/i.test(outcome)) return 'Stummschaltung für 7 Tage';
-  if (/3-day mute/i.test(outcome)) return 'Stummschaltung für 3 Tage';
-  if (/1-day mute/i.test(outcome)) return 'Stummschaltung für 1 Tag';
+  if (/7-day mute/i.test(outcome)) return 'Stummschaltung fÃ¼r 7 Tage';
+  if (/3-day mute/i.test(outcome)) return 'Stummschaltung fÃ¼r 3 Tage';
+  if (/1-day mute/i.test(outcome)) return 'Stummschaltung fÃ¼r 1 Tag';
   if (offence.days) return 'Stummschaltung angewendet';
   return 'Warnung';
 }
@@ -233,7 +233,7 @@ function makeClient(name, commands, messageContent = false, members = false) {
     role: name,
     commands: commands.map((c) => c.toJSON()),
   });
-  const client = new Client({ ...(name === 'Jerry' ? { ws: { identifyProperties: { os: 'Android', browser: 'Discord Android', device: 'Discord Android' } } } : {}),
+  const client = new Client({
     intents: [
       I.Guilds,
       I.GuildMessages,
@@ -251,7 +251,7 @@ function makeClient(name, commands, messageContent = false, members = false) {
     try {
       const guild = await client.guilds.fetch(env.GUILD_ID);
       client.user.setPresence({
-        status: name === 'Jerry' ? 'online' : 'idle',
+        status: name === 'Jerry' ? 'invisible' : 'idle',
         activities: [{ name: 'Chrisp Addon', type: 0 }],
       });
       const globalCommands = await client.application.commands.fetch();
@@ -261,22 +261,24 @@ function makeClient(name, commands, messageContent = false, members = false) {
       else await client.application.commands.create(helpCommand.toJSON());
       await guild.commands.set(commands.filter((entry) => name !== 'Ferlis Support' || entry.name !== 'translate').map((c) => c.toJSON()));
       if (name === 'Jerry') {
-        for (const guildId of jerryGambleGuildIds) {
+        for (const guildId of jerryActivityGuildIds) {
           try {
             const gameGuild = await client.guilds.fetch(guildId);
             await gameGuild.commands.set(activityCommands.map((c) => c.toJSON()));
-            console.log(`Jerry gambling commands installed in ${gameGuild.name}.`);
+            console.log(`memal activity commands installed in ${gameGuild.name}.`);
           } catch (error) {
-            console.error(`Jerry gambling setup failed for guild ${guildId}: ${error.message}`);
+            console.error(`memal activity setup failed for guild ${guildId}: ${error.message}`);
           }
         }
+      }
+      if (name === 'Jerry') {
         for (const guildId of jerryLeaveGuildIds) {
           try {
             const oldGuild = await client.guilds.fetch(guildId);
             await oldGuild.leave();
-            console.log(`Jerry left ${oldGuild.name} (${guildId}) as requested.`);
+            console.log(`memal left ${oldGuild.name} (${guildId}) as requested.`);
           } catch (error) {
-            console.error(`Jerry could not leave guild ${guildId}: ${error.message}`);
+            console.error(`memal could not leave guild ${guildId}: ${error.message}`);
           }
         }
       }
@@ -293,13 +295,13 @@ function makeClient(name, commands, messageContent = false, members = false) {
 }
 function onInteraction(client, handler) {
   client.on(Events.InteractionCreate, async (i) => {
-    const extraJerryGameCommand =
+    const extraJerryActivityCommand =
       client === partik &&
-      jerryGambleGuildIds.has(i.guildId) &&
+      jerryActivityGuildIds.has(i.guildId) &&
       i.isChatInputCommand() &&
       activityCommands.some((command) => command.name === i.commandName);
     const isGlobalHelp = i.isChatInputCommand() && i.commandName === 'help';
-    if (i.guildId !== env.GUILD_ID && !extraJerryGameCommand && !isGlobalHelp) return;
+    if (i.guildId !== env.GUILD_ID && !extraJerryActivityCommand && !isGlobalHelp) return;
     try {
       if (isGlobalHelp)
         return await i.reply(ephemeral('Type / to see commands available for this bot in this server.'));
@@ -314,14 +316,14 @@ function onInteraction(client, handler) {
   });
 }
 
-// 1. Jerry: rule-based moderation, with DM warnings after successful deletion.
+// 1. memal: rule-based moderation and server games, with DM warnings after successful deletion.
 const partik = makeClient(
   'Jerry',
   [
     ...modCommands,
     ...activityCommands,
-    command('moderation-status', 'Show Jerry moderation configuration', true),
-    command('mod-unmute', 'Remove a member’s timeout and permanent mute', true).addUserOption((o) =>
+    command('moderation-status', 'Show memal moderation configuration', true),
+    command('mod-unmute', 'Remove a memberâ€™s timeout and permanent mute', true).addUserOption((o) =>
       o.setName('member').setDescription('Member to unmute').setRequired(true),
     ),
   ],
@@ -353,7 +355,7 @@ async function renewPermanentMutes() {
 }
 partik.once(Events.ClientReady, () => {
   console.log(
-    'Jerry image moderation: ' +
+    'memal image moderation: ' +
       (env.MODERATION_PROVIDER === 'openai' && env.OPENAI_MODERATION_KEY
         ? 'enabled'
         : 'waiting for OPENAI_MODERATION_KEY'),
@@ -448,6 +450,15 @@ async function moderate(message, edited = false) {
         .add(memberRole, 'Member completed Discord verification and sent their first message')
         .catch((e) => console.error('Verified member role:', e.message));
   }
+  if (
+    (message.guildId === env.GUILD_ID || jerryActivityGuildIds.has(message.guildId)) &&
+    !message.attachments.size &&
+    !message.embeds.length &&
+    /^\$(?:daily|trivia|coinflip|leaderboard|balance|blackjack|roulette|mines)\b/i.test(
+      message.content || '',
+    )
+  )
+    return;
   const staffExempt =
     member.permissions.has(P.ManageMessages) || member.permissions.has(P.Administrator);
   const input = moderationInput(message);
@@ -505,7 +516,7 @@ async function moderate(message, edited = false) {
     } catch {
       await report(
         partik,
-        `Jerry could not remove a wrong-language message ${message.id} in ${message.channelId}.`,
+        `memal could not remove a wrong-language message ${message.id} in ${message.channelId}.`,
       );
       return;
     }
@@ -529,7 +540,7 @@ async function moderate(message, edited = false) {
       );
     await report(
       partik,
-      `Jerry removed a ${detected === 'de' ? 'German' : 'English'} message from ${message.author.id} in the ${expected === 'de' ? 'German' : 'English'} chat (no moderation strike).`,
+      `memal removed a ${detected === 'de' ? 'German' : 'English'} message from ${message.author.id} in the ${expected === 'de' ? 'German' : 'English'} chat (no moderation strike).`,
     );
     return;
   }
@@ -538,13 +549,13 @@ async function moderate(message, edited = false) {
   } catch {
     await report(
       partik,
-      `Jerry could not remove message ${message.id} in ${message.channelId}; check Manage Messages.`,
+      `memal could not remove message ${message.id} in ${message.channelId}; check Manage Messages.`,
     );
     return;
   }
   await report(
     partik,
-    `Jerry removed message ${message.id} from user ${message.author.id}: ${reason}.`,
+    `memal removed message ${message.id} from user ${message.author.id}: ${reason}.`,
   );
   if (permanent) return;
   const offence = recordOffence(db, message.author.id);
@@ -558,7 +569,7 @@ async function moderate(message, edited = false) {
   if (offence.days) {
     if (!member.moderatable) {
       db.prepare('UPDATE offences SET permanent=0 WHERE user=?').run(member.id);
-      outcome = 'Warning — this account cannot be timed out by Discord';
+      outcome = 'Warning â€” this account cannot be timed out by Discord';
       await report(
         partik,
         `Cannot time out ${member.id}: owner/admin or role hierarchy restriction.`,
@@ -568,7 +579,7 @@ async function moderate(message, edited = false) {
         await member.timeout(offence.days * 86400000, `Offence #${offence.count}: ${reason}`);
         appliedMute = true;
       } catch {
-        outcome += ' — could not apply; staff notified';
+        outcome += ' â€” could not apply; staff notified';
         await report(
           partik,
           `Timeout failed for ${member.id}. Check role hierarchy and Moderate Members.`,
@@ -579,7 +590,7 @@ async function moderate(message, edited = false) {
     action: appliedMute ? 'Automod mute' : 'Automod warning',
     user: message.author,
     reason,
-    source: 'Jerry automod',
+    source: 'memal automod',
     duration: appliedMute ? offence.label : undefined,
     ...(appliedMute
       ? {
@@ -609,16 +620,16 @@ async function moderate(message, edited = false) {
               name: german ? 'Grund' : 'Reason',
               value: german ? germanModerationReason(reason) : reason,
             },
-            { name: german ? 'Verstoß' : 'Offence', value: String(offence.count), inline: true },
+            { name: german ? 'VerstoÃŸ' : 'Offence', value: String(offence.count), inline: true },
             {
-              name: german ? 'Maßnahme' : 'Action',
+              name: german ? 'MaÃŸnahme' : 'Action',
               value: german ? germanModerationAction(offence, outcome) : outcome,
               inline: true,
             },
           )
           .setFooter({
             text: german
-              ? 'Nicht einverstanden? Öffne ein Einspruchsticket. Eine Spam-Serie zählt als ein Verstoß.'
+              ? 'Nicht einverstanden? Ã–ffne ein Einspruchsticket. Eine Spam-Serie zÃ¤hlt als ein VerstoÃŸ.'
               : 'Disagree? Open an appeal ticket. Spam bursts count as one incident.',
           }),
       ],
@@ -653,7 +664,7 @@ onInteraction(partik, async (i) => {
   }
   await i.reply(
     ephemeral(
-      `Jerry checks ads, spam, mass mentions and ${blocked.length} prohibited phrases including common disguises. Offences 1–2 warn, 3 mutes 1 day, 4 mutes 3 days, 5 mutes 7 days, 6+ permanently mutes until /mod-unmute. Permanent mutes use renewed 28-day timeouts. One incident per 30 seconds. Staff bypass link/word filters but still receive spam warnings. Discord cannot time out owners/admins. Closed DMs do not prevent moderation.`,
+      `memal checks ads, spam, mass mentions and ${blocked.length} prohibited phrases including common disguises. Offences 1â€“2 warn, 3 mutes 1 day, 4 mutes 3 days, 5 mutes 7 days, 6+ permanently mutes until /mod-unmute. Permanent mutes use renewed 28-day timeouts. One incident per 30 seconds. Staff bypass link/word filters but still receive spam warnings. Discord cannot time out owners/admins. Closed DMs do not prevent moderation.`,
     ),
   );
 });
@@ -709,6 +720,7 @@ const utility = makeClient(
           .setDescription('Sent to MyMemory; translated result is public in this channel')
           .setRequired(true)
           .setMaxLength(1500),
+      ),
   ],
   true,
 );
@@ -735,7 +747,7 @@ function ticketPanel() {
         .addFields({
           name: 'Ticket Info',
           value:
-            '• Choose the category that fits your question.\n• Explain your issue clearly and be patient.\n• Please do not open troll or duplicate tickets.\n• Please do not spam ping our staff. If we don’t answer fast we either are busy or sleeping.\n• Use common sense in tickets.',
+            'â€¢ Choose the category that fits your question.\nâ€¢ Explain your issue clearly and be patient.\nâ€¢ Please do not open troll or duplicate tickets.\nâ€¢ Please do not spam ping our staff. If we donâ€™t answer fast we either are busy or sleeping.\nâ€¢ Use common sense in tickets.',
         })
         .setFooter({ text: 'Support Team' }),
     ],
@@ -797,7 +809,7 @@ utility.once(Events.ClientReady, async () => {
               m.author.id === utility.user.id &&
               m.embeds.some((e) =>
                 ['Purchase Information', 'Account Purchase Information'].includes(
-                  e.title?.replace(/^CHRISP\s*•\s*/, ''),
+                  e.title?.replace(/^CHRISP\s*â€¢\s*/, ''),
                 ),
               ),
           );
@@ -1014,7 +1026,7 @@ onInteraction(utility, async (i) => {
       );
     if (access.state === 'missing-tag')
       return i.editReply(
-        'Equip this server’s tag in your Discord profile to start the seven-day hold.',
+        'Equip this serverâ€™s tag in your Discord profile to start the seven-day hold.',
       );
     if (access.state === 'hold')
       return i.editReply(
@@ -1073,7 +1085,7 @@ onInteraction(utility, async (i) => {
       )
       .setDescription(safeText(i.options.getString('description', true)))
       .setImage(picture.url)
-      .setFooter({ text: 'Submit your base finds with /basefind • CHRISP+' });
+      .setFooter({ text: 'Submit your base finds with /basefind â€¢ CHRISP+' });
     if (!anonymous)
       embed.setAuthor({ name: member.displayName, iconURL: i.user.displayAvatarURL() });
     const post = await config.base.send({ embeds: [embed], allowedMentions: { parse: [] } });
@@ -1085,7 +1097,7 @@ onInteraction(utility, async (i) => {
       return i.reply(ephemeral('Only the ticket owner or staff can request deletion.'));
     return i.reply({
       ...ephemeral(
-        'Delete this ticket permanently? A transcript will be sent to the private staff archive and the ticket owner’s DMs first. If either delivery fails, the channel will be kept.',
+        'Delete this ticket permanently? A transcript will be sent to the private staff archive and the ticket ownerâ€™s DMs first. If either delivery fails, the channel will be kept.',
       ),
       components: [
         new ActionRowBuilder().addComponents(
@@ -1114,7 +1126,7 @@ onInteraction(utility, async (i) => {
     if (deleting.has(i.channelId))
       return i.reply(ephemeral('This ticket is already being archived.'));
     deleting.add(i.channelId);
-    await i.update({ content: 'Saving and delivering the transcript…', components: [] });
+    await i.update({ content: 'Saving and delivering the transcriptâ€¦', components: [] });
     try {
       const config = await infrastructure;
       await archiveTicket(i.channel, row, config.archive, db, env.DATA_DIR || './data');
@@ -1177,7 +1189,7 @@ onInteraction(utility, async (i) => {
     return i.showModal(
       new ModalBuilder()
         .setCustomId('ticket:new:purchase:' + product)
-        .setTitle(brandTitle('Purchase — ' + products[product]))
+        .setTitle(brandTitle('Purchase â€” ' + products[product]))
         .addComponents(
           new ActionRowBuilder().addComponents(
             new TextInputBuilder()
@@ -1195,7 +1207,7 @@ onInteraction(utility, async (i) => {
   if (i.isButton() && i.customId === 'ticket:staff') {
     const row = ticket(i.channelId);
     if (!row || row.state !== 'open' || (row.owner !== i.user.id && !staff(i)))
-      return i.reply(ephemeral('Only this ticket’s owner or staff may request help.'));
+      return i.reply(ephemeral('Only this ticketâ€™s owner or staff may request help.'));
     const key = 'staffping:' + i.channelId;
     const last = Number(db.prepare('SELECT value FROM settings WHERE key=?').get(key)?.value || 0);
     if (Date.now() - last < 300000)
@@ -1391,7 +1403,7 @@ async function handleTranslate(i) {
         throw lastTranslationError || new Error('No translation endpoint available.');
       const names = { en: 'English', de: 'German', nl: 'Dutch' };
       return i.editReply({
-        content: `**${names[source]} → ${names[target]}**\n${translation.slice(0, 1800)}`,
+        content: `**${names[source]} â†’ ${names[target]}**\n${translation.slice(0, 1800)}`,
         allowedMentions: { parse: [] },
       });
     } catch (error) {
@@ -1443,7 +1455,7 @@ async function translateWithMyMemory(text, source, target) {
 }
 function expectedChatLanguage(channel) {
   if (channel?.type !== ChannelType.GuildText) return null;
-  if ((channel.name || '').includes('🇩🇪')) return 'de';
+  if ((channel.name || '').includes('ðŸ‡©ðŸ‡ª')) return 'de';
   const name = (channel.name || '').toLowerCase().replace(/[^a-z]/g, '');
   if (name === 'english' || name.endsWith('englishchat')) return 'en';
   if (
@@ -1459,7 +1471,7 @@ function findLanguageChat(guild, language) {
   return (
     guild.channels.cache.find((channel) => {
       if (channel.type !== ChannelType.GuildText) return false;
-      if (language === 'de' && (channel.name || '').includes('🇩🇪')) return true;
+      if (language === 'de' && (channel.name || '').includes('ðŸ‡©ðŸ‡ª')) return true;
       const name = (channel.name || '').toLowerCase().replace(/[^a-z]/g, '');
       return language === 'de'
         ? ['german', 'deutsch', 'de'].includes(name) ||
@@ -1487,7 +1499,7 @@ function isCommunityHelpQuestion(content) {
     )
   )
     return false;
-  if (/[?？]/.test(text)) return true;
+  if (/[?ï¼Ÿ]/.test(text)) return true;
 
   // Only treat clear question forms or explicit requests for help as questions.
   // A bot mention or reply by itself must not cause an answer to every follow-up.
@@ -1495,7 +1507,7 @@ function isCommunityHelpQuestion(content) {
     /^(?:who|what|when|where|why|which|how|whose|whom|wie|was|wo|wann|warum|wer|welche|welcher|welches|hoe|wat|waar|wanneer|waarom|wie)\b/i.test(
       text,
     ) ||
-    /^(?:can|could|would|will|do|does|did|is|are|am|should|have|has|kann|kannst|können|ist|sind|hast|haben|kan|kun|kunnen|is|zijn|heb|heeft)\s+(?:i|you|we|they|he|she|it|this|that|the|ich|du|wir|ihr|sie|er|es|dit|dat|ik|jij|je|wij|we|jullie|zij|u)\b/i.test(
+    /^(?:can|could|would|will|do|does|did|is|are|am|should|have|has|kann|kannst|kÃ¶nnen|ist|sind|hast|haben|kan|kun|kunnen|is|zijn|heb|heeft)\s+(?:i|you|we|they|he|she|it|this|that|the|ich|du|wir|ihr|sie|er|es|dit|dat|ik|jij|je|wij|we|jullie|zij|u)\b/i.test(
       text,
     ) ||
     /^(?:help|help me|please help|need help|i need help|we need help|help mij|ik heb hulp nodig|ich brauche hilfe|bitte hilf|ik heb hulp|weet iemand|does anyone know|can someone help)\b/i.test(
@@ -1595,7 +1607,7 @@ onInteraction(assistance, async (i) => {
     return i.reply(ephemeral('Use this command inside an open support ticket.'));
   if (i.commandName === 'ai-disable') {
     if (row.owner !== i.user.id && !staff(i))
-      return i.reply(ephemeral('Only this ticket’s owner or staff can disable AI.'));
+      return i.reply(ephemeral('Only this ticketâ€™s owner or staff can disable AI.'));
     db.prepare('UPDATE tickets SET ai=0 WHERE channel=?').run(i.channelId);
     return i.reply(
       ephemeral('AI processing is off. Direct approved-answer lookup remains available.'),
@@ -1612,7 +1624,7 @@ onInteraction(assistance, async (i) => {
         new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setCustomId('ai:consent')
-            .setLabel('I agree — enable AI')
+            .setLabel('I agree â€” enable AI')
             .setStyle(ButtonStyle.Primary),
         ),
       ],
@@ -1621,7 +1633,7 @@ onInteraction(assistance, async (i) => {
   }
   if (i.commandName === 'ask') {
     if (row.owner !== i.user.id && !staff(i))
-      return i.reply(ephemeral('Only this ticket’s owner or staff can ask here.'));
+      return i.reply(ephemeral('Only this ticketâ€™s owner or staff can ask here.'));
     await i.deferReply();
     try {
       return i.editReply({
@@ -1673,7 +1685,7 @@ assistance.on(Events.MessageCreate, async (m) => {
         .send({
           content:
             supportLanguage(question) === 'de'
-              ? 'Ich kann gerade nicht antworten. Bitte öffne ein Support-Ticket.'
+              ? 'Ich kann gerade nicht antworten. Bitte Ã¶ffne ein Support-Ticket.'
               : 'I could not answer right now. Please open a support ticket.',
           allowedMentions: { parse: [] },
         })
