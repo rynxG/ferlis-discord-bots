@@ -24,7 +24,7 @@ const gameTimeoutMs = 5 * 60 * 1000;
 const redNumbers = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
 const rouletteColor = (number) =>
   number === 0 ? 'green' : redNumbers.has(number) ? 'red' : 'black';
-const colorEmoji = (color) => ({ red: '🔴', black: '⚫', green: '🟢' })[color];
+const colorEmoji = (color) => ({ red: 'ðŸ”´', black: 'âš«', green: 'ðŸŸ¢' })[color];
 const pick = (items) => items[randomInt(items.length)];
 function handValue(cards) {
   let total = cards.reduce((sum, card) => sum + card.value, 0);
@@ -169,7 +169,7 @@ async function createCoinGif(result) {
           <path d="M -31 -23 C -15 -40 15 -40 31 -23 C 15 -7 -15 -7 -31 -23 M -31 23 C -15 7 15 7 31 23 C 15 40 -15 40 -31 23" fill="none" stroke="#8b5719" stroke-width="1" opacity=".65"/>
           <text x="0" y="-25" text-anchor="middle" font-family="Arial,sans-serif" font-size="8.5" font-weight="800" letter-spacing="2" fill="#70440f">${face}</text>
           <image x="-22" y="-15" width="44" height="36" href="data:image/png;base64,${logoData}" opacity=".18" preserveAspectRatio="xMidYMid meet"/>
-          <text x="0" y="35" text-anchor="middle" font-family="Arial,sans-serif" font-size="6" font-weight="800" letter-spacing="1.5" fill="#70440f">CHRISP · 50 / 50</text>
+          <text x="0" y="35" text-anchor="middle" font-family="Arial,sans-serif" font-size="6" font-weight="800" letter-spacing="1.5" fill="#70440f">CHRISP Â· 50 / 50</text>
           <path d="M 0 -10 l 2.1 5.8 6.1 .2 -4.8 3.6 1.8 5.8 -5.1 -3.4 -5.1 3.4 1.8 -5.8 -4.8 -3.6 6.1 -.2 Z" transform="translate(-38 0) scale(.23)" fill="#fff1bd" opacity=".8"/>
           <path d="M 0 -10 l 2.1 5.8 6.1 .2 -4.8 3.6 1.8 5.8 -5.1 -3.4 -5.1 3.4 1.8 -5.8 -4.8 -3.6 6.1 -.2 Z" transform="translate(38 0) scale(.23)" fill="#fff1bd" opacity=".8"/>
           <circle cx="0" cy="-${radius - 8}" r="2.2" fill="#fff7d7"/>
@@ -199,7 +199,7 @@ async function createCoinGif(result) {
         <ellipse cx="${centerX}" cy="217" rx="${shadowWidth * 0.72}" ry="3" fill="#d7a54b" opacity="${(0.13 - 0.08 * liftGlow).toFixed(2)}"/>
         ${hand}
         ${coin}
-        <text x="${centerX}" y="246" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="600" letter-spacing="2" fill="#aa8798">THUMB-FLICK TOSS · SECURE RANDOM RESULT</text>
+        <text x="${centerX}" y="246" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="600" letter-spacing="2" fill="#aa8798">THUMB-FLICK TOSS Â· SECURE RANDOM RESULT</text>
       </svg>`;
     frames.push(await sharp(Buffer.from(svg)).png().toBuffer());
   }
@@ -231,14 +231,14 @@ async function createBlackjackGif(game, revealDealer = false) {
       .slice(0, visibleCount)
       .map((card, index) => {
         const x = 48 + index * 53;
-        const red = ['♥️', '♦️'].includes(card.suit);
+        const red = ['â™¥ï¸', 'â™¦ï¸'].includes(card.suit);
         return `<g><rect x="${x}" y="${y}" width="${cardWidth}" height="${cardHeight}" rx="6" fill="#fbf5e8" stroke="#d5b76c" stroke-width="2"/><text x="${x + 5}" y="${y + 17}" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="${red ? '#c34447' : '#24252a'}">${card.rank}</text><text x="${x + 22}" y="${y + 46}" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" fill="${red ? '#c34447' : '#24252a'}">${card.suit}</text></g>`;
       })
       .join('');
     let backSvg = '';
     if (hideHole) {
       const x = 48 + (shown.length > 1 ? 53 : 0);
-      backSvg = `<g><rect x="${x}" y="${y}" width="${cardWidth}" height="${cardHeight}" rx="6" fill="#3d2852" stroke="#d5b76c" stroke-width="2"/><rect x="${x + 5}" y="${y + 5}" width="${cardWidth - 10}" height="${cardHeight - 10}" rx="4" fill="none" stroke="#c39cde" stroke-width="2"/><text x="${x + 22}" y="${y + 41}" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" fill="#f3e9ff">✦</text></g>`;
+      backSvg = `<g><rect x="${x}" y="${y}" width="${cardWidth}" height="${cardHeight}" rx="6" fill="#3d2852" stroke="#d5b76c" stroke-width="2"/><rect x="${x + 5}" y="${y + 5}" width="${cardWidth - 10}" height="${cardHeight - 10}" rx="4" fill="none" stroke="#c39cde" stroke-width="2"/><text x="${x + 22}" y="${y + 41}" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" fill="#f3e9ff">âœ¦</text></g>`;
     }
     const overflow =
       cards.length > shown.length
@@ -255,7 +255,7 @@ async function createBlackjackGif(game, revealDealer = false) {
       : 1;
     const dealerCards = displayCards(game.dealer, 53, dealerVisible, !revealDealer);
     const playerCards = displayCards(game.player, 143, playerVisible);
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${renderWidth}" height="${renderHeight}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" rx="18" fill="#201217"/><text x="20" y="27" font-family="Arial,sans-serif" font-size="17" font-weight="800" fill="#f4e2c2">♠ BLACKJACK</text><text x="340" y="27" text-anchor="end" font-family="Arial,sans-serif" font-size="12" fill="#e0cda9">BET ${game.bet} POINTS</text><text x="20" y="47" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#c7b394">DEALER ${revealDealer ? handValue(game.dealer) : '· ·'}</text>${dealerCards}<text x="20" y="137" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#c7b394">YOU ${handValue(game.player)}</text>${playerCards}</svg>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${renderWidth}" height="${renderHeight}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" rx="18" fill="#201217"/><text x="20" y="27" font-family="Arial,sans-serif" font-size="17" font-weight="800" fill="#f4e2c2">â™  BLACKJACK</text><text x="340" y="27" text-anchor="end" font-family="Arial,sans-serif" font-size="12" fill="#e0cda9">BET ${game.bet} POINTS</text><text x="20" y="47" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#c7b394">DEALER ${revealDealer ? handValue(game.dealer) : 'Â· Â·'}</text>${dealerCards}<text x="20" y="137" font-family="Arial,sans-serif" font-size="11" font-weight="700" fill="#c7b394">YOU ${handValue(game.player)}</text>${playerCards}</svg>`;
     frames.push(await sharp(Buffer.from(svg)).png().toBuffer());
   }
 
@@ -294,7 +294,7 @@ async function createMinesImage(game, revealAllMines = false) {
         : `<rect x="${x + 18}" y="${y + 18}" width="${tileSize - 36}" height="${tileSize - 36}" rx="20" fill="none" stroke="#a784bb" stroke-opacity="${glow}" stroke-width="5"/>`;
     return `<g><rect x="${x}" y="${y}" width="${tileSize}" height="${tileSize}" rx="22" fill="${fill}" stroke="${safe ? '#57d79e' : showMine ? '#ef6b74' : '#55475d'}" stroke-width="6"/><rect x="${x + 8}" y="${y + 8}" width="${tileSize - 16}" height="${tileSize - 16}" rx="16" fill="none" stroke="white" stroke-opacity=".06" stroke-width="3"/>${symbol}</g>`;
   }).join('');
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#301923"/><stop offset="1" stop-color="#110d15"/></linearGradient></defs><rect width="100%" height="100%" rx="36" fill="url(#bg)"/><text x="540" y="86" text-anchor="middle" font-family="Arial,sans-serif" font-size="46" font-weight="800" fill="#ffe7c4">MINES</text><text x="540" y="130" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#d4c3d8">${game.minesCount} mines · ${game.revealed.size} safe tiles</text>${tiles}<text x="540" y="1030" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" fill="#d7c5b1">CHOOSE A TILE · CASH OUT ANY TIME</text></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#301923"/><stop offset="1" stop-color="#110d15"/></linearGradient></defs><rect width="100%" height="100%" rx="36" fill="url(#bg)"/><text x="540" y="86" text-anchor="middle" font-family="Arial,sans-serif" font-size="46" font-weight="800" fill="#ffe7c4">MINES</text><text x="540" y="130" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#d4c3d8">${game.minesCount} mines Â· ${game.revealed.size} safe tiles</text>${tiles}<text x="540" y="1030" text-anchor="middle" font-family="Arial,sans-serif" font-size="20" fill="#d7c5b1">CHOOSE A TILE Â· CASH OUT ANY TIME</text></svg>`;
   return sharp(Buffer.from(svg)).resize(720, 720).png({ compressionLevel: 6 }).toBuffer();
 }
 
@@ -383,8 +383,15 @@ export const activityCommands = [
     ),
   new SlashCommandBuilder()
     .setName('leaderboard')
-    .setDescription('See this server’s activity leaderboard')
+    .setDescription('See this serverâ€™s activity leaderboard')
     .setDMPermission(false),
+  new SlashCommandBuilder()
+    .setName('balance')
+    .setDescription('Check your or another memberâ€™s points')
+    .setDMPermission(false)
+    .addUserOption((option) =>
+      option.setName('user').setDescription('Member whose balance to check'),
+    ),
   new SlashCommandBuilder()
     .setName('blackjack')
     .setDescription('Play blackjack with virtual Ferlis points')
@@ -392,7 +399,7 @@ export const activityCommands = [
     .addIntegerOption((option) =>
       option
         .setName('bet')
-        .setDescription(`Bet 5–${maxBet} points`)
+        .setDescription(`Bet 5â€“${maxBet} points`)
         .setMinValue(5)
         .setMaxValue(maxBet)
         .setRequired(true),
@@ -404,7 +411,7 @@ export const activityCommands = [
     .addIntegerOption((option) =>
       option
         .setName('bet')
-        .setDescription(`Bet 5–${maxBet} points`)
+        .setDescription(`Bet 5â€“${maxBet} points`)
         .setMinValue(5)
         .setMaxValue(maxBet)
         .setRequired(true),
@@ -427,7 +434,7 @@ export const activityCommands = [
     .addIntegerOption((option) =>
       option
         .setName('bet')
-        .setDescription(`Bet 5–${maxBet} points`)
+        .setDescription(`Bet 5â€“${maxBet} points`)
         .setMinValue(5)
         .setMaxValue(maxBet)
         .setRequired(true),
@@ -435,7 +442,7 @@ export const activityCommands = [
     .addIntegerOption((option) =>
       option
         .setName('mines')
-        .setDescription('Number of mines on the 5×5 board')
+        .setDescription('Number of mines on the 5Ã—5 board')
         .setMinValue(1)
         .setMaxValue(12)
         .setRequired(true),
@@ -444,8 +451,8 @@ export const activityCommands = [
 
 export function installActivity(client, db) {
   const primaryGuildId = process.env.GUILD_ID;
-  const extraGameGuilds = new Set(
-    (process.env.JERRY_GAMBLE_GUILD_IDS || '')
+  const extraActivityGuilds = new Set(
+    (process.env.JERRY_ACTIVITY_GUILD_IDS || process.env.JERRY_GAMBLE_GUILD_IDS || process.env.UTILITY_ACTIVITY_GUILD_IDS || '')
       .split(',')
       .map((id) => id.trim())
       .filter(Boolean),
@@ -497,6 +504,107 @@ export function installActivity(client, db) {
   const blackjacks = new Map();
   const minesGames = new Map();
   const gameTimeouts = new Map();
+
+  function prefixInteraction(message, commandName, args) {
+    let initialMessage = null;
+    const values = {
+      guess: args[0]?.toLowerCase(),
+      bet: /^\d+$/u.test(args[0] || '') ? Number(args[0]) : null,
+      mines: /^\d+$/u.test(args[1] || '') ? Number(args[1]) : null,
+      color: args[1]?.toLowerCase(),
+      user: message.mentions.users.first() || null,
+    };
+    const interaction = {
+      guildId: message.guildId,
+      guild: message.guild,
+      user: message.author,
+      member: message.member,
+      memberPermissions: message.member?.permissions,
+      commandName,
+      deferred: false,
+      replied: false,
+      isChatInputCommand: () => true,
+      isButton: () => false,
+      options: {
+        getString: (name) => values[name] ?? null,
+        getInteger: (name) => values[name] ?? null,
+        getUser: (name) => values[name] ?? null,
+      },
+      async reply(payload) {
+        initialMessage = await message.channel.send(
+          typeof payload === 'string' ? payload : { ...payload, flags: undefined },
+        );
+        interaction.replied = true;
+        return initialMessage;
+      },
+      async deferReply() {
+        interaction.deferred = true;
+      },
+      async editReply(payload) {
+        if (initialMessage) return initialMessage.edit(payload);
+        initialMessage = await message.channel.send(payload);
+        interaction.replied = true;
+        return initialMessage;
+      },
+      async followUp(payload) {
+        return message.channel.send(
+          typeof payload === 'string' ? payload : { ...payload, flags: undefined },
+        );
+      },
+      async fetchReply() {
+        return initialMessage;
+      },
+    };
+    return interaction;
+  }
+
+  client.on(Events.MessageCreate, async (message) => {
+    if (!message.guild || message.author.bot || !message.content.startsWith('$')) return;
+    const [rawCommand, ...args] = message.content.slice(1).trim().split(/\s+/u);
+    const commandName = rawCommand?.toLowerCase();
+    if (!commandName || !activityCommands.some((entry) => entry.name === commandName)) return;
+    const argumentCounts = {
+      daily: [0, 0],
+      trivia: [0, 0],
+      coinflip: [1, 1],
+      leaderboard: [0, 0],
+      balance: [0, 1],
+      blackjack: [1, 1],
+      roulette: [2, 2],
+      mines: [2, 2],
+    };
+    const [minimum, maximum] = argumentCounts[commandName];
+    if (args.length < minimum || args.length > maximum) {
+      const usage = {
+        coinflip: '$coinflip heads|tails',
+        blackjack: '$blackjack <bet>',
+        roulette: '$roulette <bet> red|black|green',
+        mines: '$mines <bet> <mine-count>',
+        balance: '$balance [@member]',
+      }[commandName] || `$${commandName}`;
+      return message.reply(`Usage: \`${usage}\``).catch(() => {});
+    }
+    if (commandName === 'coinflip' && !['heads', 'tails'].includes(args[0]?.toLowerCase()))
+      return message.reply('Choose `heads` or `tails`: `$coinflip heads`').catch(() => {});
+    if (commandName === 'roulette' && !['red', 'black', 'green'].includes(args[1]?.toLowerCase()))
+      return message.reply('Choose `red`, `black`, or `green`: `$roulette 10 red`').catch(() => {});
+    if (['blackjack', 'roulette', 'mines'].includes(commandName)) {
+      const bet = /^\d+$/u.test(args[0] || '') ? Number(args[0]) : NaN;
+      if (!Number.isInteger(bet) || bet < 5 || bet > maxBet)
+        return message.reply(`Bet must be between 5 and ${maxBet} points.`).catch(() => {});
+    }
+    if (commandName === 'mines') {
+      const mines = /^\d+$/u.test(args[1] || '') ? Number(args[1]) : NaN;
+      if (!Number.isInteger(mines) || mines < 1 || mines > 12)
+        return message.reply('Choose between 1 and 12 mines.').catch(() => {});
+    }
+    try {
+      await handleActivityCommand(prefixInteraction(message, commandName, args));
+    } catch (error) {
+      console.error(`Prefix activity command $${commandName} failed.`, error);
+      message.reply('That command hit an error. Try again in a moment.').catch(() => {});
+    }
+  });
 
   function clearGameTimeout(id) {
     const timeout = gameTimeouts.get(id);
@@ -572,7 +680,7 @@ export function installActivity(client, db) {
   }
 
   function gambleLimitMessage(limit, betReturned = false) {
-    return `You’ve reached the limit of **${limit} gambles per hour**.${betReturned ? ' Your bet was returned.' : ' Try again later.'}`;
+    return `Youâ€™ve reached the limit of **${limit} gambles per hour**.${betReturned ? ' Your bet was returned.' : ' Try again later.'}`;
   }
 
   function reserveBet(user, bet, kind) {
@@ -622,7 +730,7 @@ export function installActivity(client, db) {
 
   function makeDeck() {
     const cards = [];
-    for (const suit of ['♠️', '♥️', '♦️', '♣️']) {
+    for (const suit of ['â™ ï¸', 'â™¥ï¸', 'â™¦ï¸', 'â™£ï¸']) {
       for (const rank of ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']) {
         cards.push({
           rank,
@@ -641,15 +749,15 @@ export function installActivity(client, db) {
   function renderBlackjack(game, revealDealer = false, status = '') {
     const dealerCards = revealDealer
       ? game.dealer.map((card) => `**${card.rank}${card.suit}**`).join('  ')
-      : `**${game.dealer[0].rank}${game.dealer[0].suit}**  🂠`;
+      : `**${game.dealer[0].rank}${game.dealer[0].suit}**  ðŸ‚ `;
     const dealerTotal = revealDealer ? ` (${handValue(game.dealer)})` : '';
     return new EmbedBuilder()
       .setColor(
         status.startsWith('You win') ? 0x36c275 : status.startsWith('Push') ? 0xffc247 : 0xe34b4b,
       )
-      .setTitle('♠️ Blackjack')
+      .setTitle('â™ ï¸ Blackjack')
       .setDescription(
-        `**Virtual points only • Bet ${game.bet} • max ${maxBet}**\n\n**Dealer${dealerTotal}**\n${dealerCards}\n\n**${game.owner === game.lastPlayer ? 'Your' : 'Player'} hand (${handValue(game.player)})**\n${game.player.map((card) => `**${card.rank}${card.suit}**`).join('  ')}${status ? `\n\n${status}` : ''}`,
+        `**Virtual points only â€¢ Bet ${game.bet} â€¢ max ${maxBet}**\n\n**Dealer${dealerTotal}**\n${dealerCards}\n\n**${game.owner === game.lastPlayer ? 'Your' : 'Player'} hand (${handValue(game.player)})**\n${game.player.map((card) => `**${card.rank}${card.suit}**`).join('  ')}${status ? `\n\n${status}` : ''}`,
       );
   }
 
@@ -662,6 +770,10 @@ export function installActivity(client, db) {
       embeds: [embed],
       files: [new AttachmentBuilder(animation, { name: 'blackjack.gif' })],
     };
+  }
+
+  function staticBlackjackMessage(game, revealDealer = false, status = '') {
+    return { embeds: [renderBlackjack(game, revealDealer, status)], files: [] };
   }
 
   function minesMultiplier(game) {
@@ -692,7 +804,7 @@ export function installActivity(client, db) {
                   : ButtonStyle.Secondary,
             )
             .setDisabled(disabled || Boolean(state));
-          if (state) button.setEmoji(state === 'safe' ? '💎' : '💥');
+          if (state) button.setEmoji(state === 'safe' ? 'ðŸ’Ž' : 'ðŸ’¥');
           return button;
         }),
       ),
@@ -712,9 +824,9 @@ export function installActivity(client, db) {
               ? 0x36c275
               : 0x8d7548,
       )
-      .setTitle('💎 Mines')
+      .setTitle('ðŸ’Ž Mines')
       .setDescription(
-        `Bet: **${game.bet} points** · Mines: **${game.minesCount}**\nSafe tiles: **${game.revealed.size}** · Cash-out: **${payout} points** (${multiplier.toFixed(2)}×)${status ? `\n\n${status}` : '\n\nChoose another tile or cash out.'}\n\n*Virtual points only; no purchase, transfer, or cash-out.*`,
+        `Bet: **${game.bet} points** Â· Mines: **${game.minesCount}**\nSafe tiles: **${game.revealed.size}** Â· Cash-out: **${payout} points** (${multiplier.toFixed(2)}Ã—)${status ? `\n\n${status}` : '\n\nChoose another tile or cash out.'}\n\n*Virtual points only; no purchase, transfer, or cash-out.*`,
       )
       .setImage('attachment://mines-board.png');
   }
@@ -822,21 +934,24 @@ export function installActivity(client, db) {
     });
   }
 
-  client.on(Events.InteractionCreate, async (interaction) => {
+  async function handleActivityCommand(interaction) {
     if (
       !interaction.guildId ||
-      (interaction.guildId !== primaryGuildId && !extraGameGuilds.has(interaction.guildId)) ||
-      !interaction.isChatInputCommand()
+      (interaction.guildId !== primaryGuildId && !extraActivityGuilds.has(interaction.guildId))
     )
       return;
-    if (!activityCommands.some((entry) => entry.name === interaction.commandName)) return;
+    if (
+      interaction.isChatInputCommand() &&
+      !activityCommands.some((entry) => entry.name === interaction.commandName)
+    )
+      return;
     const user = accountKey(interaction);
     if (interaction.commandName === 'daily') {
       ensureUser.run(user);
       const current = getUser.get(user);
       if (current.last_daily === today()) {
         return interaction.reply({
-          content: `You already claimed today’s reward. Your streak is **${current.streak} days**—come back tomorrow!`,
+          content: `You already claimed todayâ€™s reward. Your streak is **${current.streak} days**â€”come back tomorrow!`,
           flags: MessageFlags.Ephemeral,
         });
       }
@@ -851,11 +966,23 @@ export function installActivity(client, db) {
             .setColor(0xff8a00)
             .setTitle('Daily reward')
             .setDescription(
-              `You earned **${reward} points**!\n🔥 Daily streak: **${streak} day${streak === 1 ? '' : 's'}**`,
+              `You earned **${reward} points**!\nðŸ”¥ Daily streak: **${streak} day${streak === 1 ? '' : 's'}**`,
             )
             .setFooter({ text: 'Play /trivia or /coinflip to climb the leaderboard.' }),
         ],
         flags: MessageFlags.Ephemeral,
+      });
+    }
+
+    if (interaction.commandName === 'balance') {
+      const target = interaction.options.getUser('user') || interaction.user;
+      const targetKey = accountKey({ guildId: interaction.guildId, user: target });
+      ensureUser.run(targetKey);
+      const current = getUser.get(targetKey);
+      return interaction.reply({
+        content: `${target.id === interaction.user.id ? 'Your' : `<@${target.id}>â€™s`} balance: **${current.points} points**.`,
+        flags: MessageFlags.Ephemeral,
+        allowedMentions: { parse: [] },
       });
     }
 
@@ -879,8 +1006,8 @@ export function installActivity(client, db) {
       }
       const spinEmbed = new EmbedBuilder()
         .setColor(0x8d7548)
-        .setTitle('🪙 Coin flipping…')
-        .setDescription(`Your guess: **${guess}**\n*Fair 50/50 toss • secure random result*`);
+        .setTitle('ðŸª™ Coin flippingâ€¦')
+        .setDescription(`Your guess: **${guess}**\n*Fair 50/50 toss â€¢ secure random result*`);
       if (animation) spinEmbed.setImage('attachment://coin-flip.gif');
       await interaction.editReply({
         embeds: [spinEmbed],
@@ -894,7 +1021,7 @@ export function installActivity(client, db) {
         .setDescription(
           `It landed on **${result}**. ${won ? 'You earned **4 points**.' : 'Try again with **/coinflip**.'}`,
         )
-        .setFooter({ text: 'Fair 50/50 toss • secure random result' });
+        .setFooter({ text: 'Fair 50/50 toss â€¢ secure random result' });
       return interaction.followUp({
         embeds: [resultEmbed],
         allowedMentions: { parse: [] },
@@ -950,7 +1077,7 @@ export function installActivity(client, db) {
         ? leaders
             .map(
               (entry, index) =>
-                `**${index + 1}.** ${mentionUser(entry.user)} — **${entry.points}** points`,
+                `**${index + 1}.** ${mentionUser(entry.user)} â€” **${entry.points}** points`,
             )
             .join('\n')
         : 'No scores yet. Claim **/daily** or start a round with **/trivia**!';
@@ -996,14 +1123,14 @@ export function installActivity(client, db) {
             interaction,
             reservation.id,
             game,
-            'Push — both have blackjack.',
+            'Push â€” both have blackjack.',
             bet,
           );
         return finishBlackjack(
           interaction,
           reservation.id,
           game,
-          'You win with blackjack! Payout: **2.5×**.',
+          'You win with blackjack! Payout: **2.5Ã—**.',
           Math.floor(bet * 2.5),
         );
       }
@@ -1017,21 +1144,32 @@ export function installActivity(client, db) {
         );
       await interaction.deferReply();
       try {
-        await interaction.editReply({
-          ...(await blackjackMessage(game)),
-          components: [
-            new ActionRowBuilder().addComponents(
-              new ButtonBuilder()
-                .setCustomId(`bj:${reservation.id}:hit`)
-                .setLabel('Hit')
-                .setStyle(ButtonStyle.Success),
-              new ButtonBuilder()
-                .setCustomId(`bj:${reservation.id}:stand`)
-                .setLabel('Stand')
-                .setStyle(ButtonStyle.Danger),
-            ),
-          ],
-        });
+        const components = [
+          new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`bj:${reservation.id}:hit`)
+              .setLabel('Hit')
+              .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+              .setCustomId(`bj:${reservation.id}:stand`)
+              .setLabel('Stand')
+              .setStyle(ButtonStyle.Danger),
+          ),
+        ];
+        let payload;
+        try {
+          payload = await blackjackMessage(game);
+        } catch (error) {
+          console.error('Blackjack animation could not be rendered; using a static hand.', error);
+          payload = staticBlackjackMessage(game);
+        }
+        try {
+          await interaction.editReply({ ...payload, components });
+        } catch (error) {
+          if (!payload.files?.length) throw error;
+          console.error('Blackjack animation could not be sent; retrying without it.', error);
+          await interaction.editReply({ ...staticBlackjackMessage(game), components });
+        }
         const gameMessage = await interaction.fetchReply();
         game.channelId = gameMessage.channelId;
         game.messageId = gameMessage.id;
@@ -1040,12 +1178,13 @@ export function installActivity(client, db) {
         blackjacks.delete(reservation.id);
         settleBet(reservation.id, bet);
         console.error('Blackjack could not be opened; the bet was refunded.', error);
-        return interaction.editReply({
+        const refundNotice = {
           content: 'The hand could not be opened, so your bet was returned.',
           embeds: [],
           files: [],
           components: [],
-        });
+        };
+        return interaction.editReply(refundNotice).catch(() => null);
       }
       return;
     }
@@ -1092,9 +1231,9 @@ export function installActivity(client, db) {
         embeds: [
           new EmbedBuilder()
             .setColor(0x8d7548)
-            .setTitle('💎 Mines')
+            .setTitle('ðŸ’Ž Mines')
             .setDescription(
-              `Bet: **${bet} points** · Mines: **${minesCount}**\nChoose a tile, then cash out whenever you like. Virtual points only.`,
+              `Bet: **${bet} points** Â· Mines: **${minesCount}**\nChoose a tile, then cash out whenever you like. Virtual points only.`,
             )
             .setImage('attachment://mines-board.png'),
         ],
@@ -1149,7 +1288,7 @@ export function installActivity(client, db) {
       }
       const spinEmbed = new EmbedBuilder()
         .setColor(0x8d7548)
-        .setTitle('🎡 Roulette is spinning…')
+        .setTitle('ðŸŽ¡ Roulette is spinningâ€¦')
         .setDescription(
           `Bet: **${bet} points** on ${colorEmoji(target)} **${target}**\n*Virtual points only; no cash value.*`,
         )
@@ -1162,16 +1301,18 @@ export function installActivity(client, db) {
       const balance = settleBet(reservation.id, payout);
       const resultEmbed = new EmbedBuilder()
         .setColor(won ? 0x36c275 : 0xe34b4b)
-        .setTitle(`${colorEmoji(landed)} Roulette — ${result} ${landed.toUpperCase()}`)
+        .setTitle(`${colorEmoji(landed)} Roulette â€” ${result} ${landed.toUpperCase()}`)
         .setDescription(
           `Your pick: ${colorEmoji(target)} **${target}**\n${won ? `You won **${payout} points** (including your stake).` : `You lost **${bet} points**.`}\nBalance: **${balance} points**\n\n*Virtual points only; no purchase, transfer, or cash-out.*`,
         )
         .setFooter({
-          text: 'European wheel: 18 red, 18 black, 1 green • result drawn fairly with a secure random source',
+          text: 'European wheel: 18 red, 18 black, 1 green â€¢ result drawn fairly with a secure random source',
         });
       return interaction.followUp({ embeds: [resultEmbed], allowedMentions: { parse: [] } });
     }
-  });
+  }
+
+  client.on(Events.InteractionCreate, handleActivityCommand);
 
   client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('mines:tile:')) {
@@ -1189,7 +1330,7 @@ export function installActivity(client, db) {
         });
       if (game.busy)
         return interaction.reply({
-          content: 'Your board is updating—try again in a moment.',
+          content: 'Your board is updatingâ€”try again in a moment.',
           flags: MessageFlags.Ephemeral,
         });
       const tile = Number(tileText);
@@ -1208,7 +1349,7 @@ export function installActivity(client, db) {
           interaction.message,
           game,
           id,
-          'Mine hit — your bet is lost.',
+          'Mine hit â€” your bet is lost.',
           true,
         );
       }
@@ -1247,7 +1388,7 @@ export function installActivity(client, db) {
         });
       if (game.busy)
         return interaction.reply({
-          content: 'Your board is updating—try again in a moment.',
+          content: 'Your board is updatingâ€”try again in a moment.',
           flags: MessageFlags.Ephemeral,
         });
       game.busy = true;
@@ -1285,7 +1426,7 @@ export function installActivity(client, db) {
         });
       if (game.busy)
         return interaction.reply({
-          content: 'Your hand is updating—try again in a moment.',
+          content: 'Your hand is updatingâ€”try again in a moment.',
           flags: MessageFlags.Ephemeral,
         });
       game.busy = true;
@@ -1294,7 +1435,7 @@ export function installActivity(client, db) {
       if (action === 'hit') {
         game.player.push(game.deck.pop());
         if (handValue(game.player) > 21)
-          return finishBlackjack(interaction, id, game, 'Bust — your bet is lost.', 0);
+          return finishBlackjack(interaction, id, game, 'Bust â€” your bet is lost.', 0);
         try {
           const payload = await blackjackMessage(game);
           const updated = await interaction.editReply({
@@ -1319,9 +1460,9 @@ export function installActivity(client, db) {
       const playerTotal = handValue(game.player);
       const dealerTotal = handValue(game.dealer);
       if (dealerTotal > 21 || playerTotal > dealerTotal)
-        return finishBlackjack(interaction, id, game, 'You win! Payout: **2×**.', game.bet * 2);
+        return finishBlackjack(interaction, id, game, 'You win! Payout: **2Ã—**.', game.bet * 2);
       if (playerTotal === dealerTotal)
-        return finishBlackjack(interaction, id, game, 'Push — your bet is returned.', game.bet);
+        return finishBlackjack(interaction, id, game, 'Push â€” your bet is returned.', game.bet);
       return finishBlackjack(interaction, id, game, 'Dealer wins. Your bet is lost.', 0);
     }
     if (!interaction.isButton() || !interaction.customId.startsWith('trivia:')) return;
@@ -1335,7 +1476,7 @@ export function installActivity(client, db) {
     }
     if (Number(picked) !== round.correctIndex) {
       return interaction.reply({
-        content: 'Not quite—try another answer!',
+        content: 'Not quiteâ€”try another answer!',
         flags: MessageFlags.Ephemeral,
       });
     }
