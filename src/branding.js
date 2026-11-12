@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 // Keep legacy internal role names stable: they select tokens, intents and handlers.
 // Public names can change without changing those routing keys.
 export const displayBotName = (role) =>
-  role === 'Jerry' ? 'Jerry' : role === 'Feris Utility' ? 'Chrisp Utility' : 'Chrisp AI';
+  role === 'Jerry' ? 'memal' : role === 'Feris Utility' ? 'Chrisp Utility' : 'Chrisp AI';
 
 export async function applyBranding(client, role, guild, db, invite) {
   const displayName = displayBotName(role);
@@ -43,7 +43,7 @@ export async function applyBranding(client, role, guild, db, invite) {
 
   const purpose =
     role === 'Jerry'
-      ? 'Jerry moderation.'
+      ? 'Memal moderation and server games.'
       : role === 'Feris Utility'
         ? 'Chrisp Utility tickets and voice rooms.'
         : 'Chrisp AI ticket support.';
