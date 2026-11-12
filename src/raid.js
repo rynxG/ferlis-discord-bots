@@ -60,7 +60,7 @@ export function createRaidGuard(client, db, env, allowed) {
           lastLinkAlert = Date.now();
           alert(
             'Repeated unapproved link campaign',
-            `An unapproved link was shared by at least ${cfg.linkCount} distinct accounts within ${cfg.linkSeconds} seconds.\nLatest message: ${message.id}\nChannel: <#${message.channelId}>\nJerry is removing messages under the existing advertising rules.`,
+            `An unapproved link was shared by at least ${cfg.linkCount} distinct accounts within ${cfg.linkSeconds} seconds.\nLatest message: ${message.id}\nChannel: <#${message.channelId}>\nmemal is removing messages under the existing advertising rules.`,
           ).catch((e) => console.error('Raid link alert:', e.message));
         }
         return 'coordinated repeated unapproved links';
